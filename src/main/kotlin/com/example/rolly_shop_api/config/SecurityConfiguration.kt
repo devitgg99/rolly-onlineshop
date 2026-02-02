@@ -60,14 +60,20 @@ class SecurityConfiguration(
             // Use allowedOriginPatterns for wildcard support
             allowedOriginPatterns = listOf(
                 "http://localhost:*",           // All localhost ports
+                "http://127.0.0.1:*",           // Localhost IP
                 "http://192.168.*.*:*",         // Local network
-                "https://*.ts.net",             // Tailscale
-                "https://*.vercel.app"          // Vercel deployments
+                "http://10.*.*.*:*",            // Private network
+                "http://*.ts.net",              // Tailscale HTTP
+                "http://*.ts.net:*",            // Tailscale HTTP with port
+                "https://*.ts.net",             // Tailscale HTTPS
+                "https://*.ts.net:*",           // Tailscale HTTPS with port
+                "https://*.vercel.app",         // Vercel deployments
+                "*"                             // Allow all (for development)
             )
 
-            allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+            allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD")
             allowedHeaders = listOf("*")
-            exposedHeaders = listOf("Authorization", "Content-Type")
+            exposedHeaders = listOf("Authorization", "Content-Type", "X-Requested-With")
             allowCredentials = true
             maxAge = 3600L
         }
