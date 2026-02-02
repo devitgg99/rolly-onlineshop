@@ -1,0 +1,38 @@
+# Git
+.git
+.gitignore
+
+# Build outputs
+build/
+out/
+target/
+
+# IDE
+.idea/
+*.iml
+*.iws
+.vscode/
+
+# Gradle
+.gradle/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local env files
+.env
+.env.local
+*.local
+
+# Documentation
+README.md
+docs/
+
+# Test files
+src/test/

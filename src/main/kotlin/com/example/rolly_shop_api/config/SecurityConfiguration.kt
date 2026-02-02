@@ -31,10 +31,16 @@ class SecurityConfiguration(
         .cors { it.configurationSource(corsConfigurationSource()) }
         .authorizeHttpRequests {
             it.requestMatchers(
-                "/api/v1/auth/**", "/api/v1/refresh", "/error", "/api/v1/file/**",
-                "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/webjars/**"
+                // Auth & Swagger
+                "/api/v1/auth/**", "/api/v1/refresh", "/error",
+                "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/webjars/**",
+                // Public file/image endpoints
+                "/api/v1/file/**", "/api/v1/images/**",
+                // Public catalog endpoints (GET only)
+                "/api/v1/products/**", "/api/v1/brands/**", "/api/v1/categories/**",
+                "/api/v1/reviews/product/**"
             ).permitAll()
-                .requestMatchers("/api/v1/house/**").hasRole("HOUSEOWNER")
+                // Admin endpoints handled by @PreAuthorize
                 .anyRequest().fullyAuthenticated()
         }
         .exceptionHandling {

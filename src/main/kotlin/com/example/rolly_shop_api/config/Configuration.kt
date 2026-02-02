@@ -12,9 +12,10 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.core.userdetails.UserDetailsService
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import org.springframework.security.crypto.password.PasswordEncoder
+import org.springframework.web.client.RestTemplate
 
 @Configuration
-@EnableConfigurationProperties(JwtProperties::class)
+@EnableConfigurationProperties(JwtProperties::class, RemoveBgProperties::class)
 class Configuration {
     @Bean
     fun userDetailsService(
@@ -37,4 +38,7 @@ class Configuration {
     @Bean
     fun authenticationManager(config: AuthenticationConfiguration): AuthenticationManager =
         config.authenticationManager
+
+    @Bean
+    fun restTemplate(): RestTemplate = RestTemplate()
 }
