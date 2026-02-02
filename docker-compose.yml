@@ -10,10 +10,10 @@ services:
     ports:
       - "8080:8080"
     environment:
-      # Database
-      - DB_URL=jdbc:postgresql://db:5432/rolly_shop_db
+      # Database (using existing external database)
+      - DB_URL=jdbc:postgresql://100.82.34.38:5433/rolly_shop_db
       - DB_USERNAME=postgres
-      - DB_PASSWORD=${DB_PASSWORD:-postgres123}
+      - DB_PASSWORD=${DB_PASSWORD:-123}
       
       # JWT
       - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
@@ -29,36 +29,9 @@ services:
       
       # JVM options for production
       - JAVA_OPTS=-Xmx512m -Xms256m
-    depends_on:
-      db:
-        condition: service_healthy
     restart: unless-stopped
     networks:
       - rolly-network
-
-  # ==================== DATABASE ====================
-  db:
-    image: postgres:16-alpine
-    container_name: rolly-shop-db
-    environment:
-      - POSTGRES_DB=rolly_shop_db
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres123}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d rolly_shop_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-    networks:
-      - rolly-network
-
-volumes:
-  postgres_data:
 
 networks:
   rolly-network:
