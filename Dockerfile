@@ -1,20 +1,24 @@
 # ==================== BUILD STAGE ====================
-FROM gradle:8.5-jdk21 AS builder
+FROM eclipse-temurin:21-jdk AS builder
 
 WORKDIR /app
 
-# Copy gradle files first (for caching)
+# Copy gradle wrapper and build files
+COPY gradlew gradlew
+COPY gradle gradle
 COPY build.gradle.kts settings.gradle.kts ./
-COPY gradle ./gradle
+
+# Make gradlew executable
+RUN chmod +x gradlew
 
 # Download dependencies (cached if gradle files don't change)
-RUN gradle dependencies --no-daemon || true
+RUN ./gradlew dependencies --no-daemon || true
 
 # Copy source code
 COPY src ./src
 
 # Build the application
-RUN gradle bootJar --no-daemon -x test
+RUN ./gradlew bootJar --no-daemon -x test
 
 # ==================== RUNTIME STAGE ====================
 FROM eclipse-temurin:21-jre-alpine
