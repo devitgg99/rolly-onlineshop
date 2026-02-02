@@ -57,24 +57,13 @@ class SecurityConfiguration(
     @Bean
     fun corsConfigurationSource(): CorsConfigurationSource {
         val config = CorsConfiguration().apply {
-            // Use allowedOriginPatterns for wildcard support
-            allowedOriginPatterns = listOf(
-                "http://localhost:*",           // All localhost ports
-                "http://127.0.0.1:*",           // Localhost IP
-                "http://192.168.*.*:*",         // Local network
-                "http://10.*.*.*:*",            // Private network
-                "http://*.ts.net",              // Tailscale HTTP
-                "http://*.ts.net:*",            // Tailscale HTTP with port
-                "https://*.ts.net",             // Tailscale HTTPS
-                "https://*.ts.net:*",           // Tailscale HTTPS with port
-                "https://*.vercel.app",         // Vercel deployments
-                "*"                             // Allow all (for development)
-            )
-
+            // Allow all origins for maximum compatibility
+            allowedOrigins = listOf("*")
             allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD")
             allowedHeaders = listOf("*")
             exposedHeaders = listOf("Authorization", "Content-Type", "X-Requested-With")
-            allowCredentials = true
+            // Note: allowCredentials must be false when using allowedOrigins = "*"
+            allowCredentials = false
             maxAge = 3600L
         }
 
