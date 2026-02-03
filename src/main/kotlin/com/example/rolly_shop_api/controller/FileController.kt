@@ -3,6 +3,9 @@ package com.example.rolly_shop_api.controller
 import com.example.rolly_shop_api.model.dto.response.BaseResponse
 import com.example.rolly_shop_api.service.LocalFileStorageService
 import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.Parameter
+import io.swagger.v3.oas.annotations.media.Content
+import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.security.SecurityRequirements
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.core.io.Resource
@@ -21,14 +24,16 @@ class FileController(
     private val localFileStorageService: LocalFileStorageService
 ) {
 
-    @PostMapping("/upload")
+    @PostMapping("/upload", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(
         summary = "Upload a file",
         description = "🔒 ADMIN ONLY - Upload a file to local storage. Returns the public URL."
     )
     fun uploadFile(
-        @RequestParam("file") file: MultipartFile,
+        @Parameter(description = "File to upload", content = [Content(mediaType = MediaType.APPLICATION_OCTET_STREAM_VALUE)])
+        @RequestPart("file") file: MultipartFile,
+        @Parameter(description = "Custom filename (optional)")
         @RequestParam(required = false) fileName: String?
     ): BaseResponse<FileUploadResponse> {
         val storedFileName = localFileStorageService.storeFile(file, fileName)
@@ -49,14 +54,15 @@ class FileController(
         )
     }
 
-    @PostMapping("/upload-multiple")
+    @PostMapping("/upload-multiple", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(
         summary = "Upload multiple files",
         description = "🔒 ADMIN ONLY - Upload multiple files at once. Returns list of public URLs."
     )
     fun uploadMultipleFiles(
-        @RequestParam("files") files: List<MultipartFile>
+        @Parameter(description = "Files to upload")
+        @RequestPart("files") files: List<MultipartFile>
     ): BaseResponse<List<FileUploadResponse>> {
         val responses = files.map { file ->
             val storedFileName = localFileStorageService.storeFile(file)

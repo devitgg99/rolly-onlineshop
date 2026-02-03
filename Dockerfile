@@ -31,7 +31,10 @@ RUN addgroup -S spring && adduser -S spring -G spring
 # Copy the built jar from builder stage
 COPY --from=builder /app/build/libs/*.jar app.jar
 
-# Change ownership to non-root user
+# Create uploads directory for local file storage
+RUN mkdir -p /app/uploads
+
+# Change ownership to non-root user (including uploads folder)
 RUN chown -R spring:spring /app
 
 # Switch to non-root user
