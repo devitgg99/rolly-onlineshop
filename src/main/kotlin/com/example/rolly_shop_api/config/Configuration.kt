@@ -15,7 +15,7 @@ import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.web.client.RestTemplate
 
 @Configuration
-@EnableConfigurationProperties(JwtProperties::class, RemoveBgProperties::class)
+@EnableConfigurationProperties(JwtProperties::class, RemoveBgProperties::class, FileStorageProperties::class)
 class Configuration {
     @Bean
     fun userDetailsService(

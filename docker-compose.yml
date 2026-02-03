@@ -18,7 +18,7 @@ services:
       # JWT
       - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
       
-      # AWS S3
+      # AWS S3 (optional - can still use if needed)
       - AWS_ACCESS_KEY=${AWS_ACCESS_KEY}
       - AWS_SECRET_KEY=${AWS_SECRET_KEY}
       - AWS_REGION=${AWS_REGION:-ap-southeast-2}
@@ -27,11 +27,20 @@ services:
       # Remove.bg
       - REMOVEBG_API_KEY=${REMOVEBG_API_KEY}
       
+      # Local File Storage
+      - FILE_UPLOAD_DIR=/app/uploads
+      
       # JVM options for production
       - JAVA_OPTS=-Xmx512m -Xms256m
+    volumes:
+      # Persist uploaded files
+      - uploads_data:/app/uploads
     restart: unless-stopped
     networks:
       - rolly-network
+
+volumes:
+  uploads_data:
 
 networks:
   rolly-network:

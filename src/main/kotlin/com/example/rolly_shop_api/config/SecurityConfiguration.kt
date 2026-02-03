@@ -35,7 +35,7 @@ class SecurityConfiguration(
                 "/api/v1/auth/**", "/api/v1/refresh", "/error",
                 "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/webjars/**",
                 // Public file/image endpoints
-                "/api/v1/file/**", "/api/v1/images/**",
+                "/api/v1/file/**", "/api/v1/files/**", "/api/v1/images/**",
                 // Public catalog endpoints (GET only)
                 "/api/v1/products/**", "/api/v1/brands/**", "/api/v1/categories/**",
                 "/api/v1/reviews/product/**"
