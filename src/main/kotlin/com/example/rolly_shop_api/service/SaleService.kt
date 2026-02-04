@@ -27,4 +27,15 @@ interface SaleService {
 
     // Get today's summary
     fun getTodaySummary(): SalesSummaryResponse
+
+    // ==================== PRODUCT SALES ANALYTICS ====================
+
+    // Get sales stats for a specific product
+    fun getProductSalesStats(productId: UUID): ProductSalesStatsResponse
+
+    // Get top selling products
+    fun getTopSellingProducts(limit: Int): List<TopSellingProductResponse>
+
+    // Get top selling products within date range
+    fun getTopSellingProductsBetween(startDate: LocalDate, endDate: LocalDate, limit: Int): List<TopSellingProductResponse>
 }

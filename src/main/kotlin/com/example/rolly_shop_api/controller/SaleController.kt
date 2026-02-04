@@ -121,4 +121,44 @@ class SaleController(
         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) endDate: LocalDate
     ): BaseResponse<SalesSummaryResponse> =
         BaseResponse.success(saleService.getSummary(startDate, endDate), "Sales summary")
+
+    // ==================== PRODUCT SALES ANALYTICS ====================
+
+    @GetMapping("/product/{productId}/stats")
+    @Operation(
+        summary = "Get sales stats for a product",
+        description = """
+            🔒 ADMIN ONLY - Get sales statistics for a specific product:
+            - Total quantity sold (all time)
+            - Total revenue from this product
+            - Total profit from this product
+            - Current stock remaining
+        """
+    )
+    fun getProductSalesStats(@PathVariable productId: UUID): BaseResponse<ProductSalesStatsResponse> =
+        BaseResponse.success(saleService.getProductSalesStats(productId), "Product sales stats")
+
+    @GetMapping("/top-selling")
+    @Operation(
+        summary = "Get top selling products",
+        description = "🔒 ADMIN ONLY - Get the best selling products by quantity sold (all time)"
+    )
+    fun getTopSellingProducts(
+        @Parameter(description = "Number of products to return") @RequestParam(defaultValue = "10") limit: Int
+    ): BaseResponse<List<TopSellingProductResponse>> =
+        BaseResponse.success(saleService.getTopSellingProducts(limit), "Top selling products")
+
+    @GetMapping("/top-selling/range")
+    @Operation(
+        summary = "Get top selling products in date range",
+        description = "🔒 ADMIN ONLY - Get the best selling products within a specific date range"
+    )
+    fun getTopSellingProductsBetween(
+        @Parameter(description = "Start date (YYYY-MM-DD)")
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) startDate: LocalDate,
+        @Parameter(description = "End date (YYYY-MM-DD)")
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) endDate: LocalDate,
+        @Parameter(description = "Number of products to return") @RequestParam(defaultValue = "10") limit: Int
+    ): BaseResponse<List<TopSellingProductResponse>> =
+        BaseResponse.success(saleService.getTopSellingProductsBetween(startDate, endDate, limit), "Top selling products in range")
 }

@@ -5,8 +5,10 @@ import com.example.rolly_shop_api.model.dto.response.*
 import com.example.rolly_shop_api.model.entity.Sale
 import com.example.rolly_shop_api.model.entity.SaleItem
 import com.example.rolly_shop_api.repository.ProductRepository
+import com.example.rolly_shop_api.repository.SaleItemRepository
 import com.example.rolly_shop_api.repository.SaleRepository
 import com.example.rolly_shop_api.repository.UserRepository
+import org.springframework.data.domain.PageRequest
 import com.example.rolly_shop_api.service.CurrentUserService
 import com.example.rolly_shop_api.service.SaleService
 import org.springframework.data.domain.Pageable
@@ -22,7 +24,8 @@ class SaleServiceImplement(
     private val saleRepository: SaleRepository,
     private val productRepository: ProductRepository,
     private val userRepository: UserRepository,
-    private val currentUserService: CurrentUserService
+    private val currentUserService: CurrentUserService,
+    private val saleItemRepository: SaleItemRepository
 ) : SaleService {
 
     @Transactional
@@ -169,5 +172,54 @@ class SaleServiceImplement(
     override fun getTodaySummary(): SalesSummaryResponse {
         val today = LocalDate.now()
         return getSummary(today, today)
+    }
+
+    // ==================== PRODUCT SALES ANALYTICS ====================
+
+    override fun getProductSalesStats(productId: UUID): ProductSalesStatsResponse {
+        val product = productRepository.findById(productId)
+            .orElseThrow { NoSuchElementException("Product not found") }
+
+        val totalQuantitySold = saleItemRepository.getTotalQuantitySold(productId)
+        val totalRevenue = saleItemRepository.getTotalRevenueForProduct(productId)
+        val totalProfit = saleItemRepository.getTotalProfitForProduct(productId)
+
+        return ProductSalesStatsResponse(
+            productId = product.id!!,
+            productName = product.name,
+            totalQuantitySold = totalQuantitySold,
+            totalRevenue = totalRevenue,
+            totalProfit = totalProfit,
+            currentStock = product.stockQuantity
+        )
+    }
+
+    override fun getTopSellingProducts(limit: Int): List<TopSellingProductResponse> {
+        val results = saleItemRepository.getTopSellingProducts(PageRequest.of(0, limit))
+        return results.map { row ->
+            TopSellingProductResponse(
+                productId = row[0] as UUID,
+                productName = row[1] as String,
+                totalQuantitySold = row[2] as Long
+            )
+        }
+    }
+
+    override fun getTopSellingProductsBetween(
+        startDate: LocalDate,
+        endDate: LocalDate,
+        limit: Int
+    ): List<TopSellingProductResponse> {
+        val start = startDate.atStartOfDay(ZoneId.systemDefault()).toInstant()
+        val end = endDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant()
+
+        val results = saleItemRepository.getTopSellingProductsBetween(start, end, PageRequest.of(0, limit))
+        return results.map { row ->
+            TopSellingProductResponse(
+                productId = row[0] as UUID,
+                productName = row[1] as String,
+                totalQuantitySold = row[2] as Long
+            )
+        }
     }
 }

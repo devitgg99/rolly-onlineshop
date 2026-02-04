@@ -350,6 +350,83 @@ PENDING → CONFIRMED → PROCESSING → SHIPPED → DELIVERED → COMPLETED
 
 ---
 
+## 💰 Sales (POS) Endpoints - Walk-in Sales
+
+All Sales endpoints require **Admin** authentication.
+
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| POST | `/sales` | Create a walk-in sale | 🔒 Admin |
+| GET | `/sales/{id}` | Get sale details | 🔒 Admin |
+| GET | `/sales` | Get all sales (paginated) | 🔒 Admin |
+| GET | `/sales/today` | Get today's sales | 🔒 Admin |
+| GET | `/sales/range?startDate=&endDate=` | Get sales by date range | 🔒 Admin |
+| GET | `/sales/summary/today` | Get today's sales summary | 🔒 Admin |
+| GET | `/sales/summary?startDate=&endDate=` | Get sales summary for range | 🔒 Admin |
+| GET | `/sales/product/{productId}/stats` | Get sales stats for a product | 🔒 Admin |
+| GET | `/sales/top-selling?limit=10` | Get top selling products | 🔒 Admin |
+| GET | `/sales/top-selling/range?startDate=&endDate=&limit=10` | Top selling in date range | 🔒 Admin |
+
+### Create Sale Request
+```json
+{
+  "customerName": "Walk-in Customer",
+  "customerPhone": "0123456789",
+  "items": [
+    {
+      "productId": "uuid-of-product",
+      "quantity": 2
+    }
+  ],
+  "discountAmount": 0,
+  "paymentMethod": "CASH",
+  "notes": "Paid in cash"
+}
+```
+
+### Product Sales Stats Response
+```json
+{
+  "productId": "uuid",
+  "productName": "iPhone 15 Pro",
+  "totalQuantitySold": 150,
+  "totalRevenue": 149850.00,
+  "totalProfit": 14985.00,
+  "currentStock": 45
+}
+```
+
+### Top Selling Products Response
+```json
+[
+  {
+    "productId": "uuid",
+    "productName": "iPhone 15 Pro",
+    "totalQuantitySold": 150
+  },
+  {
+    "productId": "uuid",
+    "productName": "Samsung Galaxy S24",
+    "totalQuantitySold": 120
+  }
+]
+```
+
+### Sales Summary Response
+```json
+{
+  "totalSales": 25,
+  "totalRevenue": 5000.00,
+  "totalCost": 3500.00,
+  "totalProfit": 1500.00,
+  "profitMargin": 30.0,
+  "periodStart": "2026-01-26T00:00:00Z",
+  "periodEnd": "2026-01-27T00:00:00Z"
+}
+```
+
+---
+
 ## 🔐 Authentication
 
 ### Using JWT Token
