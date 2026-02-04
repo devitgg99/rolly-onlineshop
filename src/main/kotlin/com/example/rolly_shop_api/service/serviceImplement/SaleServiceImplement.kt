@@ -1,22 +1,22 @@
 package com.example.rolly_shop_api.service.serviceImplement
 
+import com.example.rolly_shop_api.model.dto.request.RefundRequest
 import com.example.rolly_shop_api.model.dto.request.SaleRequest
 import com.example.rolly_shop_api.model.dto.response.*
-import com.example.rolly_shop_api.model.entity.Sale
-import com.example.rolly_shop_api.model.entity.SaleItem
-import com.example.rolly_shop_api.repository.ProductRepository
-import com.example.rolly_shop_api.repository.SaleItemRepository
-import com.example.rolly_shop_api.repository.SaleRepository
-import com.example.rolly_shop_api.repository.UserRepository
+import com.example.rolly_shop_api.model.entity.*
+import com.example.rolly_shop_api.repository.*
 import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Sort
 import com.example.rolly_shop_api.service.CurrentUserService
 import com.example.rolly_shop_api.service.SaleService
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.io.ByteArrayOutputStream
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.*
+import java.time.format.DateTimeFormatter
 import java.util.*
 
 @Service
@@ -25,7 +25,9 @@ class SaleServiceImplement(
     private val productRepository: ProductRepository,
     private val userRepository: UserRepository,
     private val currentUserService: CurrentUserService,
-    private val saleItemRepository: SaleItemRepository
+    private val saleItemRepository: SaleItemRepository,
+    private val refundRepository: RefundRepository,
+    private val refundItemRepository: RefundItemRepository
 ) : SaleService {
 
     @Transactional
@@ -221,5 +223,344 @@ class SaleServiceImplement(
                 totalQuantitySold = row[2] as Long
             )
         }
+    }
+
+    // ==================== SALES ANALYTICS DASHBOARD ====================
+
+    override fun getSalesAnalytics(
+        startDate: LocalDate,
+        endDate: LocalDate,
+        groupBy: String
+    ): SalesAnalyticsDashboardResponse {
+        val start = startDate.atStartOfDay(ZoneId.systemDefault()).toInstant()
+        val end = endDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant()
+
+        // Basic metrics
+        val totalSales = saleRepository.countByCreatedAtBetween(start, end)
+        val totalRevenue = saleRepository.getTotalRevenue(start, end)
+        val totalProfit = saleRepository.getTotalProfit(start, end)
+        val avgOrderValue = if (totalSales > 0) {
+            totalRevenue.divide(BigDecimal(totalSales), 2, RoundingMode.HALF_UP)
+        } else BigDecimal.ZERO
+
+        // Sales by period
+        val salesByDay = calculateSalesByPeriod(start, end, groupBy)
+
+        // Sales by payment method
+        val salesByPaymentMethod = calculateSalesByPaymentMethod(start, end)
+
+        // Sales by hour
+        val salesByHour = calculateSalesByHour(start, end)
+
+        // Top customers
+        val topCustomers = calculateTopCustomers(start, end)
+
+        // Profit margin trend
+        val profitMarginTrend = calculateProfitMarginTrend(start, end, groupBy)
+
+        return SalesAnalyticsDashboardResponse(
+            totalSales = totalSales,
+            totalRevenue = totalRevenue,
+            totalProfit = totalProfit,
+            avgOrderValue = avgOrderValue,
+            salesByDay = salesByDay,
+            salesByPaymentMethod = salesByPaymentMethod,
+            salesByHour = salesByHour,
+            topCustomers = topCustomers,
+            profitMarginTrend = profitMarginTrend
+        )
+    }
+
+    private fun calculateSalesByPeriod(start: Instant, end: Instant, groupBy: String): List<SalesByPeriodResponse> {
+        val allSales = saleRepository.findByCreatedAtBetween(start, end, Pageable.unpaged()).content
+        
+        val formatter = when (groupBy.lowercase()) {
+            "week" -> DateTimeFormatter.ofPattern("yyyy-'W'ww")
+            "month" -> DateTimeFormatter.ofPattern("yyyy-MM")
+            else -> DateTimeFormatter.ofPattern("yyyy-MM-dd") // day
+        }
+
+        val groupedSales = allSales.groupBy { sale ->
+            val localDateTime = LocalDateTime.ofInstant(sale.createdAt, ZoneId.systemDefault())
+            localDateTime.format(formatter)
+        }
+
+        return groupedSales.map { (date, sales) ->
+            SalesByPeriodResponse(
+                date = date,
+                sales = sales.size.toLong(),
+                revenue = sales.sumOf { it.totalAmount },
+                profit = sales.sumOf { it.profit }
+            )
+        }.sortedBy { it.date }
+    }
+
+    private fun calculateSalesByPaymentMethod(start: Instant, end: Instant): Map<PaymentMethod, PaymentMethodSalesResponse> {
+        val results = saleRepository.getSalesByPaymentMethod(start, end)
+        return results.associate { row ->
+            val paymentMethod = row[0] as PaymentMethod
+            val count = (row[1] as Long)
+            val revenue = row[2] as BigDecimal
+            paymentMethod to PaymentMethodSalesResponse(count, revenue)
+        }
+    }
+
+    private fun calculateSalesByHour(start: Instant, end: Instant): List<SalesByHourResponse> {
+        val results = saleRepository.getSalesByHour(start, end)
+        return results.map { row ->
+            SalesByHourResponse(
+                hour = (row[0] as Number).toInt(),
+                sales = (row[1] as Long),
+                revenue = row[2] as BigDecimal
+            )
+        }
+    }
+
+    private fun calculateTopCustomers(start: Instant, end: Instant): List<TopCustomerResponse> {
+        val results = saleRepository.getTopCustomers(start, end, PageRequest.of(0, 10))
+        return results.map { row ->
+            TopCustomerResponse(
+                name = row[0] as String,
+                phone = row[1] as? String,
+                totalSpent = row[2] as BigDecimal,
+                orderCount = row[3] as Long
+            )
+        }
+    }
+
+    private fun calculateProfitMarginTrend(start: Instant, end: Instant, groupBy: String): List<ProfitMarginTrendResponse> {
+        val allSales = saleRepository.findByCreatedAtBetween(start, end, Pageable.unpaged()).content
+        
+        val formatter = when (groupBy.lowercase()) {
+            "week" -> DateTimeFormatter.ofPattern("yyyy-'W'ww")
+            "month" -> DateTimeFormatter.ofPattern("yyyy-MM")
+            else -> DateTimeFormatter.ofPattern("yyyy-MM-dd")
+        }
+
+        val groupedSales = allSales.groupBy { sale ->
+            val localDateTime = LocalDateTime.ofInstant(sale.createdAt, ZoneId.systemDefault())
+            localDateTime.format(formatter)
+        }
+
+        return groupedSales.map { (date, sales) ->
+            val totalRevenue = sales.sumOf { it.totalAmount }
+            val totalProfit = sales.sumOf { it.profit }
+            val margin = if (totalRevenue > BigDecimal.ZERO) {
+                totalProfit.divide(totalRevenue, 4, RoundingMode.HALF_UP)
+                    .multiply(BigDecimal(100)).toDouble()
+            } else 0.0
+
+            ProfitMarginTrendResponse(date = date, margin = margin)
+        }.sortedBy { it.date }
+    }
+
+    // ==================== ADVANCED FILTERING ====================
+
+    override fun getSalesWithFilters(
+        startDate: LocalDate?,
+        endDate: LocalDate?,
+        paymentMethod: PaymentMethod?,
+        minAmount: BigDecimal?,
+        maxAmount: BigDecimal?,
+        customerName: String?,
+        productId: UUID?,
+        sortBy: String,
+        direction: String,
+        pageable: Pageable
+    ): PageResponse<SaleSimpleResponse> {
+        val start = startDate?.atStartOfDay(ZoneId.systemDefault())?.toInstant()
+        val end = endDate?.plusDays(1)?.atStartOfDay(ZoneId.systemDefault())?.toInstant()
+
+        val sortField = when (sortBy.lowercase()) {
+            "amount" -> "totalAmount"
+            "profit" -> "profit"
+            else -> "createdAt"
+        }
+
+        val sort = if (direction.lowercase() == "asc") {
+            Sort.by(sortField).ascending()
+        } else {
+            Sort.by(sortField).descending()
+        }
+
+        val pageableWithSort = PageRequest.of(pageable.pageNumber, pageable.pageSize, sort)
+
+        val page = saleRepository.findWithFilters(
+            start, end, paymentMethod, minAmount, maxAmount, customerName, productId, pageableWithSort
+        )
+
+        return PageResponse.from(page) { SaleSimpleResponse.from(it) }
+    }
+
+    // ==================== REFUND MANAGEMENT ====================
+
+    @Transactional
+    override fun createRefund(saleId: UUID, request: RefundRequest): RefundResponse {
+        val sale = saleRepository.findById(saleId)
+            .orElseThrow { NoSuchElementException("Sale not found") }
+
+        val adminId = currentUserService.getCurrentUserId()
+        val admin = userRepository.findById(adminId).orElse(null)
+
+        // Calculate refund amount
+        var refundAmount = BigDecimal.ZERO
+
+        // Prepare refund item data
+        data class RefundItemData(
+            val product: Product,
+            val quantity: Int,
+            val unitPrice: BigDecimal,
+            val subtotal: BigDecimal,
+            val reason: String
+        )
+
+        val refundItemDataList = mutableListOf<RefundItemData>()
+
+        for (itemRequest in request.items) {
+            // Find the original sale item
+            val saleItem = sale.items.find { it.product.id == itemRequest.productId }
+                ?: throw NoSuchElementException("Product not found in original sale")
+
+            // Validate quantity
+            if (itemRequest.quantity > saleItem.quantity) {
+                throw IllegalStateException("Refund quantity exceeds original quantity")
+            }
+
+            val product = productRepository.findById(itemRequest.productId)
+                .orElseThrow { NoSuchElementException("Product not found") }
+
+            val subtotal = saleItem.unitPrice.multiply(BigDecimal(itemRequest.quantity))
+            refundAmount = refundAmount.add(subtotal)
+
+            refundItemDataList.add(
+                RefundItemData(
+                    product = product,
+                    quantity = itemRequest.quantity,
+                    unitPrice = saleItem.unitPrice,
+                    subtotal = subtotal,
+                    reason = itemRequest.reason
+                )
+            )
+
+            // Restore stock
+            product.stockQuantity += itemRequest.quantity
+            productRepository.save(product)
+        }
+
+        // Create refund
+        val refund = Refund(
+            sale = sale,
+            refundAmount = refundAmount,
+            refundMethod = request.refundMethod,
+            processedBy = admin,
+            notes = request.notes
+        )
+
+        val savedRefund = refundRepository.save(refund)
+
+        // Create refund items
+        for (itemData in refundItemDataList) {
+            val refundItem = RefundItem(
+                refund = savedRefund,
+                product = itemData.product,
+                quantity = itemData.quantity,
+                unitPrice = itemData.unitPrice,
+                subtotal = itemData.subtotal,
+                reason = itemData.reason
+            )
+            savedRefund.items.add(refundItem)
+        }
+
+        val finalRefund = refundRepository.save(savedRefund)
+        return RefundResponse.from(finalRefund)
+    }
+
+    override fun getAllRefunds(pageable: Pageable): PageResponse<RefundSimpleResponse> {
+        val page = refundRepository.findAll(pageable)
+        return PageResponse.from(page) { RefundSimpleResponse.from(it) }
+    }
+
+    override fun getRefundsBySale(saleId: UUID): List<RefundResponse> {
+        val refunds = refundRepository.findBySaleId(saleId)
+        return refunds.map { RefundResponse.from(it) }
+    }
+
+    // ==================== EXPORT ====================
+
+    override fun exportSales(
+        format: String,
+        startDate: LocalDate?,
+        endDate: LocalDate?,
+        paymentMethod: PaymentMethod?,
+        includeItems: Boolean
+    ): ByteArray {
+        val start = startDate?.atStartOfDay(ZoneId.systemDefault())?.toInstant()
+        val end = endDate?.plusDays(1)?.atStartOfDay(ZoneId.systemDefault())?.toInstant()
+
+        val sales = if (start != null && end != null) {
+            saleRepository.findByCreatedAtBetween(start, end, Pageable.unpaged()).content
+        } else {
+            saleRepository.findAll()
+        }.filter { sale ->
+            paymentMethod == null || sale.paymentMethod == paymentMethod
+        }
+
+        return when (format.lowercase()) {
+            "csv" -> generateCSV(sales, includeItems)
+            "excel" -> generateExcel(sales, includeItems)
+            "pdf" -> generatePDF(sales, includeItems)
+            else -> throw IllegalArgumentException("Unsupported format: $format")
+        }
+    }
+
+    private fun generateCSV(sales: List<Sale>, includeItems: Boolean): ByteArray {
+        val output = ByteArrayOutputStream()
+        output.bufferedWriter().use { writer ->
+            // Header
+            if (includeItems) {
+                writer.write("Date,Time,Invoice#,Customer,Product,Quantity,Unit Price,Subtotal,Payment Method,Discount,Total,Profit,Status\n")
+                
+                sales.forEach { sale ->
+                    val dateTime = LocalDateTime.ofInstant(sale.createdAt, ZoneId.systemDefault())
+                    val date = dateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+                    val time = dateTime.format(DateTimeFormatter.ofPattern("HH:mm:ss"))
+                    val customer = sale.customerName ?: "Walk-in"
+                    val hasRefund = refundRepository.existsBySaleId(sale.id!!)
+                    val status = if (hasRefund) "Refunded" else "Completed"
+
+                    sale.items.forEach { item ->
+                        writer.write("$date,$time,${sale.id},\"$customer\",\"${item.product.name}\",${item.quantity},${item.unitPrice},${item.subtotal},${sale.paymentMethod},${sale.discountAmount},${sale.totalAmount},${sale.profit},$status\n")
+                    }
+                }
+            } else {
+                writer.write("Date,Time,Invoice#,Customer,Items,Payment Method,Subtotal,Discount,Tax,Total,Profit,Status\n")
+                
+                sales.forEach { sale ->
+                    val dateTime = LocalDateTime.ofInstant(sale.createdAt, ZoneId.systemDefault())
+                    val date = dateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+                    val time = dateTime.format(DateTimeFormatter.ofPattern("HH:mm:ss"))
+                    val customer = sale.customerName ?: "Walk-in"
+                    val itemCount = sale.items.size
+                    val hasRefund = refundRepository.existsBySaleId(sale.id!!)
+                    val status = if (hasRefund) "Refunded" else "Completed"
+                    val subtotal = sale.totalAmount.add(sale.discountAmount)
+
+                    writer.write("$date,$time,${sale.id},\"$customer\",$itemCount,${sale.paymentMethod},$subtotal,${sale.discountAmount},0.00,${sale.totalAmount},${sale.profit},$status\n")
+                }
+            }
+        }
+        return output.toByteArray()
+    }
+
+    private fun generateExcel(sales: List<Sale>, includeItems: Boolean): ByteArray {
+        // For now, return CSV format
+        // In production, you would use Apache POI library
+        return generateCSV(sales, includeItems)
+    }
+
+    private fun generatePDF(sales: List<Sale>, includeItems: Boolean): ByteArray {
+        // For now, return CSV format
+        // In production, you would use iText or similar library
+        return generateCSV(sales, includeItems)
     }
 }

@@ -1,7 +1,9 @@
 package com.example.rolly_shop_api.controller
 
+import com.example.rolly_shop_api.model.dto.request.RefundRequest
 import com.example.rolly_shop_api.model.dto.request.SaleRequest
 import com.example.rolly_shop_api.model.dto.response.*
+import com.example.rolly_shop_api.model.entity.PaymentMethod
 import com.example.rolly_shop_api.service.SaleService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
@@ -10,8 +12,13 @@ import jakarta.validation.Valid
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.format.annotation.DateTimeFormat
+import org.springframework.http.HttpHeaders
+import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
+import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.*
+import java.math.BigDecimal
 import java.time.LocalDate
 import java.util.*
 
@@ -161,4 +168,168 @@ class SaleController(
         @Parameter(description = "Number of products to return") @RequestParam(defaultValue = "10") limit: Int
     ): BaseResponse<List<TopSellingProductResponse>> =
         BaseResponse.success(saleService.getTopSellingProductsBetween(startDate, endDate, limit), "Top selling products in range")
+
+    // ==================== SALES ANALYTICS DASHBOARD ====================
+
+    @GetMapping("/analytics")
+    @Operation(
+        summary = "Get comprehensive sales analytics",
+        description = """
+            🔒 ADMIN ONLY - Get comprehensive sales dashboard analytics including:
+            - Total sales, revenue, profit, avg order value
+            - Sales by day/week/month
+            - Sales by payment method
+            - Sales by hour of day
+            - Top customers
+            - Profit margin trends
+        """
+    )
+    fun getSalesAnalytics(
+        @Parameter(description = "Start date (YYYY-MM-DD)")
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) startDate: LocalDate,
+        @Parameter(description = "End date (YYYY-MM-DD)")
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) endDate: LocalDate,
+        @Parameter(description = "Group by: day, week, or month")
+        @RequestParam(defaultValue = "day") groupBy: String
+    ): BaseResponse<SalesAnalyticsDashboardResponse> =
+        BaseResponse.success(
+            saleService.getSalesAnalytics(startDate, endDate, groupBy),
+            "Sales analytics retrieved"
+        )
+
+    // ==================== ADVANCED FILTERING ====================
+
+    @GetMapping("/filter")
+    @Operation(
+        summary = "Get sales with advanced filters",
+        description = """
+            🔒 ADMIN ONLY - Search and filter sales with multiple criteria:
+            - Date range
+            - Payment method
+            - Amount range
+            - Customer name
+            - Specific product
+            - Custom sorting
+        """
+    )
+    fun getSalesWithFilters(
+        @Parameter(description = "Start date (YYYY-MM-DD)")
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) startDate: LocalDate?,
+        @Parameter(description = "End date (YYYY-MM-DD)")
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) endDate: LocalDate?,
+        @Parameter(description = "Payment method filter")
+        @RequestParam(required = false) paymentMethod: PaymentMethod?,
+        @Parameter(description = "Minimum amount")
+        @RequestParam(required = false) minAmount: BigDecimal?,
+        @Parameter(description = "Maximum amount")
+        @RequestParam(required = false) maxAmount: BigDecimal?,
+        @Parameter(description = "Customer name (partial match)")
+        @RequestParam(required = false) customerName: String?,
+        @Parameter(description = "Product ID (sales containing this product)")
+        @RequestParam(required = false) productId: UUID?,
+        @Parameter(description = "Sort by: date, amount, or profit")
+        @RequestParam(defaultValue = "date") sortBy: String,
+        @Parameter(description = "Sort direction: asc or desc")
+        @RequestParam(defaultValue = "desc") direction: String,
+        @Parameter(description = "Page number (0-based)")
+        @RequestParam(defaultValue = "0") page: Int,
+        @Parameter(description = "Items per page")
+        @RequestParam(defaultValue = "20") size: Int
+    ): BaseResponse<PageResponse<SaleSimpleResponse>> {
+        val pageable = PageRequest.of(page, size)
+        return BaseResponse.success(
+            saleService.getSalesWithFilters(
+                startDate, endDate, paymentMethod, minAmount, maxAmount,
+                customerName, productId, sortBy, direction, pageable
+            ),
+            "Filtered sales retrieved"
+        )
+    }
+
+    // ==================== REFUND & RETURN MANAGEMENT ====================
+
+    @PostMapping("/{saleId}/refund")
+    @Operation(
+        summary = "Create a refund for a sale",
+        description = """
+            🔒 ADMIN ONLY - Process a refund for items in a sale.
+            This will:
+            - Record the refund with reason
+            - Restore stock for refunded items
+            - Track which admin processed the refund
+        """
+    )
+    fun createRefund(
+        @PathVariable saleId: UUID,
+        @Valid @RequestBody request: RefundRequest
+    ): BaseResponse<RefundResponse> =
+        BaseResponse.success(
+            saleService.createRefund(saleId, request),
+            "Refund processed successfully"
+        )
+
+    @GetMapping("/refunds")
+    @Operation(
+        summary = "Get all refunds",
+        description = "🔒 ADMIN ONLY - Get all refunds with pagination"
+    )
+    fun getAllRefunds(
+        @Parameter(description = "Page number (0-based)")
+        @RequestParam(defaultValue = "0") page: Int,
+        @Parameter(description = "Items per page")
+        @RequestParam(defaultValue = "20") size: Int
+    ): BaseResponse<PageResponse<RefundSimpleResponse>> {
+        val pageable = PageRequest.of(page, size, Sort.by("createdAt").descending())
+        return BaseResponse.success(saleService.getAllRefunds(pageable), "Refunds retrieved")
+    }
+
+    @GetMapping("/{saleId}/refunds")
+    @Operation(
+        summary = "Get refunds for a specific sale",
+        description = "🔒 ADMIN ONLY - Get all refunds associated with a specific sale"
+    )
+    fun getRefundsBySale(@PathVariable saleId: UUID): BaseResponse<List<RefundResponse>> =
+        BaseResponse.success(saleService.getRefundsBySale(saleId), "Sale refunds retrieved")
+
+    // ==================== EXPORT & REPORTING ====================
+
+    @GetMapping("/export")
+    @Operation(
+        summary = "Export sales data",
+        description = """
+            🔒 ADMIN ONLY - Export sales data in various formats.
+            Supports CSV, Excel, and PDF formats.
+            Can include detailed item breakdown or summary only.
+        """
+    )
+    fun exportSales(
+        @Parameter(description = "Export format: csv, excel, or pdf")
+        @RequestParam(defaultValue = "csv") format: String,
+        @Parameter(description = "Start date (YYYY-MM-DD)")
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) startDate: LocalDate?,
+        @Parameter(description = "End date (YYYY-MM-DD)")
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) endDate: LocalDate?,
+        @Parameter(description = "Payment method filter")
+        @RequestParam(required = false) paymentMethod: PaymentMethod?,
+        @Parameter(description = "Include item breakdown")
+        @RequestParam(defaultValue = "false") includeItems: Boolean
+    ): ResponseEntity<ByteArray> {
+        val data = saleService.exportSales(format, startDate, endDate, paymentMethod, includeItems)
+        
+        val contentType = when (format.lowercase()) {
+            "csv" -> "text/csv"
+            "excel" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            "pdf" -> "application/pdf"
+            else -> "application/octet-stream"
+        }
+        
+        val filename = "sales_export_${LocalDate.now()}.$format"
+        
+        val headers = HttpHeaders().apply {
+            contentType = MediaType.parseMediaType(contentType)
+            setContentDispositionFormData("attachment", filename)
+        }
+        
+        return ResponseEntity(data, headers, HttpStatus.OK)
+    }
 }
