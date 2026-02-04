@@ -28,4 +28,7 @@ interface ProductService {
 
     // Get low stock products
     fun getLowStockProducts(threshold: Int, pageable: Pageable): PageResponse<ProductAdminSimpleResponse>
+
+    // Admin inventory table (products with sales data)
+    fun getInventoryTable(pageable: Pageable): PageResponse<ProductInventoryResponse>
 }

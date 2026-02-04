@@ -137,6 +137,7 @@ http://localhost:8080/swagger-ui.html
 
 ## 📦 Product Endpoints
 
+### Public Endpoints
 | Method | Endpoint | Description | Auth |
 |--------|----------|-------------|------|
 | GET | `/products` | Get all products (paginated) | 🌐 Public |
@@ -144,6 +145,16 @@ http://localhost:8080/swagger-ui.html
 | GET | `/products/brand/{brandId}` | Get products by brand | 🌐 Public |
 | GET | `/products/category/{categoryId}` | Get products by category | 🌐 Public |
 | GET | `/products/search?q={query}` | Search products by name | 🌐 Public |
+
+### Admin Endpoints
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/products/admin/inventory` | **Inventory table with sales data** | 🔒 Admin |
+| GET | `/products/admin/all` | Get all products (with cost price) | 🔒 Admin |
+| GET | `/products/admin/{id}` | Get product details (with cost) | 🔒 Admin |
+| GET | `/products/admin/stats` | Get inventory statistics | 🔒 Admin |
+| GET | `/products/admin/low-stock?threshold=10` | Get low stock products | 🔒 Admin |
+| GET | `/products/barcode/{barcode}` | Find product by barcode | 🔒 Admin |
 | POST | `/products` | Create new product | 🔒 Admin |
 | PUT | `/products/{id}` | Update product | 🔒 Admin |
 | DELETE | `/products/{id}` | Delete product | 🔒 Admin |
@@ -182,6 +193,31 @@ http://localhost:8080/swagger-ui.html
   "brand": { "id": "...", "name": "Apple" },
   "category": { "id": "...", "name": "Phones" },
   "averageRating": 4.5
+}
+```
+
+### Inventory Table Response (Admin)
+`GET /products/admin/inventory` - Shows all product data with sales info:
+```json
+{
+  "id": "uuid",
+  "name": "iPhone 15 Pro",
+  "barcode": "123456789",
+  "categoryName": "Phones",
+  "brandName": "Apple",
+  "costPrice": 800.00,
+  "price": 999.99,
+  "discountPercent": 10,
+  "sellingPrice": 899.99,
+  "profit": 99.99,
+  "stockQuantity": 45,
+  "stockValue": 36000.00,
+  "totalSold": 150,
+  "totalRevenue": 134998.50,
+  "totalProfit": 14998.50,
+  "imageUrl": "https://...",
+  "createdAt": "2026-01-01T00:00:00Z",
+  "updatedAt": "2026-01-20T00:00:00Z"
 }
 ```
 

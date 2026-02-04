@@ -7,6 +7,8 @@ import com.example.rolly_shop_api.repository.BrandRepository
 import com.example.rolly_shop_api.repository.CategoryRepository
 import com.example.rolly_shop_api.repository.ProductRepository
 import com.example.rolly_shop_api.repository.ReviewRepository
+import com.example.rolly_shop_api.repository.SaleItemRepository
+import org.springframework.data.domain.PageImpl
 import com.example.rolly_shop_api.service.ProductService
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
@@ -18,7 +20,8 @@ class ProductServiceImplement(
     private val productRepository: ProductRepository,
     private val brandRepository: BrandRepository,
     private val categoryRepository: CategoryRepository,
-    private val reviewRepository: ReviewRepository
+    private val reviewRepository: ReviewRepository,
+    private val saleItemRepository: SaleItemRepository
 ) : ProductService {
 
     // ==================== PUBLIC METHODS (Customer View) ====================
@@ -159,5 +162,23 @@ class ProductServiceImplement(
     override fun getLowStockProducts(threshold: Int, pageable: Pageable): PageResponse<ProductAdminSimpleResponse> {
         val page = productRepository.findByStockQuantityLessThanEqual(threshold, pageable)
         return PageResponse.from(page) { ProductAdminSimpleResponse.from(it) }
+    }
+
+    // ==================== ADMIN INVENTORY TABLE ====================
+
+    override fun getInventoryTable(pageable: Pageable): PageResponse<ProductInventoryResponse> {
+        val page = productRepository.findAll(pageable)
+        
+        val inventoryList = page.content.map { product ->
+            val productId = product.id!!
+            val totalSold = saleItemRepository.getTotalQuantitySold(productId)
+            val totalRevenue = saleItemRepository.getTotalRevenueForProduct(productId)
+            val totalProfit = saleItemRepository.getTotalProfitForProduct(productId)
+            
+            ProductInventoryResponse.from(product, totalSold, totalRevenue, totalProfit)
+        }
+        
+        val resultPage = PageImpl(inventoryList, pageable, page.totalElements)
+        return PageResponse.from(resultPage) { it }
     }
 }

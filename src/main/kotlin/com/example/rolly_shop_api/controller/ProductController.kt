@@ -39,15 +39,6 @@ class ProductController(
         return BaseResponse.success(productService.getAll(pageable), "Products retrieved")
     }
 
-    @GetMapping("/{id}")
-    @SecurityRequirements
-    @Operation(
-        summary = "Get product details",
-        description = "🌐 PUBLIC - Get product details. Shows selling price only."
-    )
-    fun getById(@PathVariable id: UUID): BaseResponse<ProductResponse> =
-        BaseResponse.success(productService.getById(id), "Product found")
-
     @GetMapping("/brand/{brandId}")
     @SecurityRequirements
     @Operation(
@@ -92,6 +83,8 @@ class ProductController(
         val pageable = PageRequest.of(page, size)
         return BaseResponse.success(productService.search(q, pageable), "Search results")
     }
+
+    // NOTE: /{id} moved to the END of the controller to avoid matching /admin/* routes
 
     // ==================== ADMIN ENDPOINTS (includes cost price & profit) ====================
 
@@ -145,7 +138,36 @@ class ProductController(
         return BaseResponse.success(productService.getAllAdmin(pageable), "Products retrieved (admin)")
     }
 
-    @GetMapping("/admin/{id}")
+    @GetMapping("/admin/inventory")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(
+        summary = "Get product inventory table",
+        description = """
+            🔒 ADMIN ONLY - Get all products with full inventory and sales data for table display.
+            
+            Each row includes:
+            - Product ID, name, barcode
+            - Category & Brand
+            - Cost price (what you pay)
+            - Selling price (after discount)
+            - Profit per unit
+            - Stock quantity & stock value
+            - Total sold (all time)
+            - Total revenue & profit from sales
+        """
+    )
+    fun getInventoryTable(
+        @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") page: Int,
+        @Parameter(description = "Items per page") @RequestParam(defaultValue = "20") size: Int,
+        @Parameter(description = "Sort by field") @RequestParam(defaultValue = "name") sortBy: String,
+        @Parameter(description = "Sort direction (asc/desc)") @RequestParam(defaultValue = "asc") direction: String
+    ): BaseResponse<PageResponse<ProductInventoryResponse>> {
+        val sort = if (direction == "asc") Sort.by(sortBy).ascending() else Sort.by(sortBy).descending()
+        val pageable = PageRequest.of(page, size, sort)
+        return BaseResponse.success(productService.getInventoryTable(pageable), "Inventory table")
+    }
+
+    @GetMapping("/admin/{id:[0-9a-fA-F\\-]{36}}")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(
         summary = "Get product details (Admin view)",
@@ -172,7 +194,7 @@ class ProductController(
     fun create(@Valid @RequestBody request: ProductRequest): BaseResponse<ProductAdminResponse> =
         BaseResponse.success(productService.create(request), "Product created")
 
-    @PutMapping("/{id}")
+    @PutMapping("/{id:[0-9a-fA-F\\-]{36}}")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(
         summary = "Update product",
@@ -184,7 +206,7 @@ class ProductController(
     ): BaseResponse<ProductAdminResponse> =
         BaseResponse.success(productService.update(id, request), "Product updated")
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/{id:[0-9a-fA-F\\-]{36}}")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(
         summary = "Delete product",
@@ -194,4 +216,15 @@ class ProductController(
         productService.delete(id)
         return BaseResponse.ok("Product deleted")
     }
+
+    // ==================== PUBLIC ENDPOINT WITH PATH VARIABLE ====================
+
+    @GetMapping("/{id:[0-9a-fA-F\\-]{36}}")
+    @SecurityRequirements
+    @Operation(
+        summary = "Get product details",
+        description = "🌐 PUBLIC - Get product details. Shows selling price only."
+    )
+    fun getById(@PathVariable id: UUID): BaseResponse<ProductResponse> =
+        BaseResponse.success(productService.getById(id), "Product found")
 }
