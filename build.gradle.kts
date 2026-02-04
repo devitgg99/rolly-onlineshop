@@ -44,6 +44,10 @@ dependencies {
 
     // --- Swagger / OpenAPI ---
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.4")
+
+    // --- Apache POI for Excel Export ---
+    implementation("org.apache.poi:poi:5.2.5")
+    implementation("org.apache.poi:poi-ooxml:5.2.5")
 }
 
 kotlin {

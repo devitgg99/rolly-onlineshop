@@ -536,6 +536,187 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiJ9...
 
 ---
 
+## 🆕 NEW FEATURES
+
+### 1. 🖼️ Multi-Image Support API
+
+Products can now have multiple images with ordering and primary image selection.
+
+**Endpoints:**
+
+```http
+# Get all images for a product
+GET /api/v1/products/{productId}/images
+
+# Add a new image
+POST /api/v1/products/{productId}/images
+Body: {
+  "url": "https://cdn.example.com/image.jpg",
+  "isPrimary": false,
+  "displayOrder": 1
+}
+
+# Set an image as primary
+PUT /api/v1/products/{productId}/images/{imageId}/set-primary
+
+# Reorder images
+PUT /api/v1/products/{productId}/images/reorder
+Body: {
+  "imageOrders": [
+    { "imageId": "uuid", "displayOrder": 0 },
+    { "imageId": "uuid", "displayOrder": 1 }
+  ]
+}
+
+# Delete an image (minimum 1 image required)
+DELETE /api/v1/products/{productId}/images/{imageId}
+```
+
+**Features:**
+- ✅ Multiple images per product
+- ✅ Primary image selection (automatically unsets others)
+- ✅ Custom ordering/sorting
+- ✅ Automatic primary reassignment on delete
+- ✅ Prevents deleting last image
+
+---
+
+### 2. 📜 Stock History & Audit Trail
+
+Complete inventory change tracking with detailed audit logs.
+
+**Endpoints:**
+
+```http
+# Get stock history for a product
+GET /api/v1/products/{productId}/stock-history
+  ?page=0&size=20
+  &startDate=2026-01-01T00:00:00Z
+  &endDate=2026-01-31T23:59:59Z
+
+# Manually adjust stock
+POST /api/v1/products/{productId}/stock-adjustment
+Body: {
+  "adjustment": -5,  // negative = decrease, positive = increase
+  "adjustmentType": "DAMAGE",  // SALE, RESTOCK, DAMAGE, MANUAL, RETURN, CORRECTION
+  "reason": "3 units damaged during inspection"
+}
+
+# Get summary of all stock changes
+GET /api/v1/products/stock-history/summary
+  ?startDate=2026-01-01T00:00:00Z
+  &endDate=2026-01-31T23:59:59Z
+  &adjustmentType=SALE  // optional filter
+```
+
+**Adjustment Types:**
+- `SALE` - Stock sold to customers
+- `RESTOCK` - New inventory received
+- `DAMAGE` - Damaged/broken items
+- `MANUAL` - Manual adjustment
+- `RETURN` - Customer returns
+- `CORRECTION` - Inventory correction
+
+**Features:**
+- ✅ Complete audit trail (who, when, why)
+- ✅ Tracks previous/new stock values
+- ✅ Links to related records (sales, orders)
+- ✅ Prevents negative stock
+- ✅ Automatic user tracking via JWT
+- ✅ Summary statistics by adjustment type
+
+**Response Example:**
+```json
+{
+  "id": "uuid",
+  "productId": "uuid",
+  "productName": "BB Luxury",
+  "previousStock": 60,
+  "newStock": 55,
+  "adjustment": -5,
+  "adjustmentType": "SALE",
+  "reason": "Sold 5 units",
+  "referenceId": "sale-uuid",
+  "referenceType": "SALE",
+  "updatedBy": "admin@example.com",
+  "updatedByName": "Admin User",
+  "createdAt": "2026-01-30T14:30:00Z"
+}
+```
+
+---
+
+### 3. 📥 Export to Excel/CSV
+
+Export product inventory data with advanced filtering.
+
+**Endpoint:**
+
+```http
+# Export products
+GET /api/v1/products/export
+  ?format=excel  # or 'csv'
+  &brandId=uuid  # optional filter
+  &categoryId=uuid  # optional filter
+  &lowStock=true  # optional: products with stock <= 10
+  &search=collagen  # optional: search by name
+  &sortBy=name  # optional: sort field
+  &direction=asc  # optional: asc or desc
+
+Authorization: Bearer {admin-token}
+```
+
+**Export Formats:**
+
+**CSV:**
+- Single file with all product data
+- UTF-8 with BOM (Excel compatible)
+- Includes: ID, Name, Barcode, Category, Brand, Prices, Stock, Sales, Revenue, Profit
+
+**Excel (.xlsx):**
+- **Sheet 1: "Products"** - Complete product data table
+  - ID, Name, Barcode, Category, Brand
+  - Cost Price, Selling Price, Discount, Final Price
+  - Profit per Unit, Stock Quantity, Stock Value
+  - Total Sold, Total Revenue, Total Profit
+  - Image URL, Created/Updated timestamps
+
+- **Sheet 2: "Summary"** - Business statistics
+  - Total products count
+  - Total stock value
+  - Total potential profit
+  - Low stock count (<= 10 units)
+
+- **Sheet 3: "Low Stock Alert"** - Reorder list
+  - Products with stock <= 10
+  - Sorted by urgency (0 stock first)
+  - Includes Category, Brand, Stock Quantity
+  - Reorder status (URGENT or Soon)
+
+**Features:**
+- ✅ Filter by brand, category, low stock, search
+- ✅ Custom sorting
+- ✅ Auto-sized columns
+- ✅ Formatted headers
+- ✅ Sales data integration
+- ✅ Multi-sheet Excel with summary
+- ✅ Direct file download
+
+**Example Usage:**
+```bash
+# Export low stock products to Excel
+curl -X GET "http://localhost:8080/api/v1/products/export?format=excel&lowStock=true&sortBy=stockQuantity&direction=asc" \
+  -H "Authorization: Bearer {token}" \
+  --output products-low-stock.xlsx
+
+# Export all products to CSV
+curl -X GET "http://localhost:8080/api/v1/products/export?format=csv" \
+  -H "Authorization: Bearer {token}" \
+  --output products.csv
+```
+
+---
+
 ## 🏃 Running the Application
 
 ```bash
@@ -562,16 +743,20 @@ export REMOVEBG_API_KEY=your-removebg-key
        └──────────┬──────────┘
                   ▼
          ┌───────────────┐
-         │   PRODUCTS    │
-         └───────┬───────┘
-                 │
-    ┌────────────┼────────────┐
-    ▼            ▼            ▼
-┌───────┐  ┌───────────┐  ┌─────────┐
-│ CART  │  │ORDER_ITEMS│  │ REVIEWS │
-└───┬───┘  └─────┬─────┘  └────┬────┘
+         │   PRODUCTS    │◄────┐
+         └───────┬───────┘     │
+                 │              │
+    ┌────────────┼──────────────┼────────┐
+    ▼            ▼              ▼        ▼
+┌───────┐  ┌───────────┐  ┌─────────┐  ┌────────────────┐
+│ CART  │  │ORDER_ITEMS│  │ REVIEWS │  │ PRODUCT_IMAGES │ 🆕
+└───┬───┘  └─────┬─────┘  └────┬────┘  └────────────────┘
     │            │             │
-    └────────────┼─────────────┘
+    │            │             │       ┌────────────────┐
+    │            │             │       │ STOCK_HISTORY  │ 🆕
+    │            │             │       └────────┬───────┘
+    │            │             │                │
+    └────────────┼─────────────┴────────────────┘
                  ▼
          ┌───────────────┐
          │     USERS     │
@@ -582,6 +767,10 @@ export REMOVEBG_API_KEY=your-removebg-key
 ┌─────────────┐      ┌───────────┐
 │  ADDRESSES  │◄────►│  ORDERS   │
 └─────────────┘      └───────────┘
+
+🆕 New Tables:
+  • PRODUCT_IMAGES: Multi-image support with ordering
+  • STOCK_HISTORY: Complete audit trail for inventory changes
 ```
 
 ---

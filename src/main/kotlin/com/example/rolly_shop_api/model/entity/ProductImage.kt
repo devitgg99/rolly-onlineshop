@@ -1,6 +1,7 @@
 package com.example.rolly_shop_api.model.entity
 
 import jakarta.persistence.*
+import java.time.Instant
 import java.util.*
 
 @Entity
@@ -17,9 +18,15 @@ data class ProductImage(
     val imageUrl: String,
 
     @Column(name = "is_primary")
-    val isPrimary: Boolean = false,
+    var isPrimary: Boolean = false,
 
     @Column(name = "sort_order")
-    val sortOrder: Int = 0
+    var sortOrder: Int = 0,
+
+    @Column(name = "created_at")
+    val createdAt: Instant = Instant.now(),
+
+    @Column(name = "updated_at")
+    var updatedAt: Instant = Instant.now()
 )
 

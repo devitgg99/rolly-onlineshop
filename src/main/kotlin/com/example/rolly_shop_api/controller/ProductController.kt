@@ -2,11 +2,13 @@ package com.example.rolly_shop_api.controller
 
 import com.example.rolly_shop_api.model.dto.request.ProductRequest
 import com.example.rolly_shop_api.model.dto.response.*
+import com.example.rolly_shop_api.service.ProductExportService
 import com.example.rolly_shop_api.service.ProductService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.security.SecurityRequirements
 import io.swagger.v3.oas.annotations.tags.Tag
+import jakarta.servlet.http.HttpServletResponse
 import jakarta.validation.Valid
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
@@ -18,7 +20,8 @@ import java.util.*
 @RequestMapping("/api/v1/products")
 @Tag(name = "Products", description = "Product catalog endpoints")
 class ProductController(
-    private val productService: ProductService
+    private val productService: ProductService,
+    private val productExportService: ProductExportService
 ) {
     // ==================== PUBLIC ENDPOINTS (Customer View - NO cost price) ====================
 
@@ -215,6 +218,60 @@ class ProductController(
     fun delete(@PathVariable id: UUID): BaseResponse<Unit> {
         productService.delete(id)
         return BaseResponse.ok("Product deleted")
+    }
+
+    @GetMapping("/export")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(
+        summary = "Export products to Excel or CSV",
+        description = """
+            🔒 ADMIN ONLY - Export products to Excel (.xlsx) or CSV (.csv) format.
+            
+            Supports filtering by:
+            - Brand ID
+            - Category ID
+            - Low stock (<=10 units)
+            - Search by name
+            
+            Excel format includes 3 sheets:
+            1. Products - Full product data
+            2. Summary - Statistics and totals
+            3. Low Stock Alert - Products needing reorder
+        """
+    )
+    fun exportProducts(
+        @Parameter(description = "Export format (csv or excel)", required = true)
+        @RequestParam format: String,
+        
+        @Parameter(description = "Filter by brand ID")
+        @RequestParam(required = false) brandId: UUID?,
+        
+        @Parameter(description = "Filter by category ID")
+        @RequestParam(required = false) categoryId: UUID?,
+        
+        @Parameter(description = "Filter low stock products (<=10)")
+        @RequestParam(required = false) lowStock: Boolean?,
+        
+        @Parameter(description = "Search by product name")
+        @RequestParam(required = false) search: String?,
+        
+        @Parameter(description = "Sort by field")
+        @RequestParam(defaultValue = "name") sortBy: String,
+        
+        @Parameter(description = "Sort direction (asc/desc)")
+        @RequestParam(defaultValue = "asc") direction: String,
+        
+        response: HttpServletResponse
+    ): Unit {
+        when (format.lowercase()) {
+            "csv" -> productExportService.exportToCSV(
+                response, brandId, categoryId, lowStock, search, sortBy, direction
+            )
+            "excel" -> productExportService.exportToExcel(
+                response, brandId, categoryId, lowStock, search, sortBy, direction
+            )
+            else -> throw IllegalArgumentException("Invalid format. Use 'csv' or 'excel'")
+        }
     }
 
     // ==================== PUBLIC ENDPOINT WITH PATH VARIABLE ====================
