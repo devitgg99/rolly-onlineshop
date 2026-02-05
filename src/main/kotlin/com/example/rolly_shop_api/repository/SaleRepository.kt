@@ -72,16 +72,14 @@ interface SaleRepository : JpaRepository<Sale, UUID> {
 
     @Query("""
         SELECT s FROM Sale s
+        LEFT JOIN s.items si
         WHERE (:startDate IS NULL OR s.createdAt >= :startDate)
         AND (:endDate IS NULL OR s.createdAt <= :endDate)
         AND (:paymentMethod IS NULL OR s.paymentMethod = :paymentMethod)
         AND (:minAmount IS NULL OR s.totalAmount >= :minAmount)
         AND (:maxAmount IS NULL OR s.totalAmount <= :maxAmount)
         AND (:customerName IS NULL OR LOWER(s.customerName) LIKE LOWER(CONCAT('%', :customerName, '%')))
-        AND (:productId IS NULL OR EXISTS (
-            SELECT 1 FROM SaleItem si 
-            WHERE si.sale = s AND si.product.id = :productId
-        ))
+        AND (:productId IS NULL OR si.product.id = :productId)
     """)
     fun findWithFilters(
         @Param("startDate") startDate: Instant?,
