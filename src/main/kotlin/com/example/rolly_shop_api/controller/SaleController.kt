@@ -56,17 +56,51 @@ class SaleController(
 
     @GetMapping
     @Operation(
-        summary = "Get all sales",
-        description = "🔒 ADMIN ONLY - Get all sales (paginated)"
+        summary = "Get all sales with advanced filters",
+        description = """
+            🔒 ADMIN ONLY - Get all sales with advanced filtering and sorting.
+            
+            Filters available:
+            - Date range (startDate, endDate)
+            - Payment method (CASH, CARD, E_WALLET, BANK_TRANSFER, COD)
+            - Amount range (minAmount, maxAmount)
+            - Customer name search (partial match)
+            - Product filter (sales containing specific product)
+            - Custom sorting by date, amount, or profit
+        """
     )
     fun getAll(
-        @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") page: Int,
-        @Parameter(description = "Items per page") @RequestParam(defaultValue = "20") size: Int,
-        @Parameter(description = "Sort direction") @RequestParam(defaultValue = "desc") direction: String
+        @Parameter(description = "Start date (YYYY-MM-DD)")
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) startDate: LocalDate?,
+        @Parameter(description = "End date (YYYY-MM-DD)")
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) endDate: LocalDate?,
+        @Parameter(description = "Payment method filter (CASH, CARD, E_WALLET, BANK_TRANSFER, COD)")
+        @RequestParam(required = false) paymentMethod: PaymentMethod?,
+        @Parameter(description = "Minimum sale amount")
+        @RequestParam(required = false) minAmount: BigDecimal?,
+        @Parameter(description = "Maximum sale amount")
+        @RequestParam(required = false) maxAmount: BigDecimal?,
+        @Parameter(description = "Customer name (partial match, case-insensitive)")
+        @RequestParam(required = false) customerName: String?,
+        @Parameter(description = "Product ID (find sales containing this product)")
+        @RequestParam(required = false) productId: UUID?,
+        @Parameter(description = "Sort by: date, amount, or profit")
+        @RequestParam(defaultValue = "date") sortBy: String,
+        @Parameter(description = "Sort direction: asc or desc")
+        @RequestParam(defaultValue = "desc") direction: String,
+        @Parameter(description = "Page number (0-based)")
+        @RequestParam(defaultValue = "0") page: Int,
+        @Parameter(description = "Items per page")
+        @RequestParam(defaultValue = "20") size: Int
     ): BaseResponse<PageResponse<SaleSimpleResponse>> {
-        val sort = if (direction == "asc") Sort.by("createdAt").ascending() else Sort.by("createdAt").descending()
-        val pageable = PageRequest.of(page, size, sort)
-        return BaseResponse.success(saleService.getAll(pageable), "Sales retrieved")
+        val pageable = PageRequest.of(page, size)
+        return BaseResponse.success(
+            saleService.getSalesWithFilters(
+                startDate, endDate, paymentMethod, minAmount, maxAmount,
+                customerName, productId, sortBy, direction, pageable
+            ),
+            "Sales retrieved"
+        )
     }
 
     @GetMapping("/today")
