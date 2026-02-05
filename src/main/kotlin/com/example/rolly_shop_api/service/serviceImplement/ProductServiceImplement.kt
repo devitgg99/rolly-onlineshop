@@ -138,6 +138,36 @@ class ProductServiceImplement(
         return PageResponse.from(page) { ProductAdminSimpleResponse.from(it) }
     }
 
+    override fun getAllAdminWithFilters(
+        categoryId: UUID?,
+        search: String?,
+        pageable: Pageable
+    ): PageResponse<ProductAdminSimpleResponse> {
+        val page = when {
+            // Both filters
+            categoryId != null && !search.isNullOrBlank() -> {
+                productRepository.findByCategoryIdAndNameContainingIgnoreCaseOrBarcodeContainingIgnoreCase(
+                    categoryId, search, search, pageable
+                )
+            }
+            // Category filter only
+            categoryId != null -> {
+                productRepository.findByCategoryId(categoryId, pageable)
+            }
+            // Search filter only
+            !search.isNullOrBlank() -> {
+                productRepository.findByNameContainingIgnoreCaseOrBarcodeContainingIgnoreCase(
+                    search, search, pageable
+                )
+            }
+            // No filters
+            else -> {
+                productRepository.findAll(pageable)
+            }
+        }
+        return PageResponse.from(page) { ProductAdminSimpleResponse.from(it) }
+    }
+
     // ==================== BARCODE LOOKUP (for POS/scanning) ====================
 
     override fun getByBarcode(barcode: String): ProductAdminResponse {

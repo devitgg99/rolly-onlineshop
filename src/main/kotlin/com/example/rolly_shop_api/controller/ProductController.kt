@@ -127,18 +127,41 @@ class ProductController(
     @GetMapping("/admin/all")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(
-        summary = "Get all products (Admin view)",
-        description = "🔒 ADMIN ONLY - Get all products with cost price and profit"
+        summary = "Get all products (Admin view) with filters",
+        description = """
+            🔒 ADMIN ONLY - Get all products with cost price and profit.
+            
+            Supports filtering:
+            - Filter by category (categoryId)
+            - Search by name or barcode (search)
+            - Combine filters for powerful searching
+        """
     )
     fun getAllAdmin(
+        @Parameter(description = "Page number (0-based)")
         @RequestParam(defaultValue = "0") page: Int,
-        @RequestParam(defaultValue = "10") size: Int,
+        
+        @Parameter(description = "Items per page")
+        @RequestParam(defaultValue = "20") size: Int,
+        
+        @Parameter(description = "Filter by category ID")
+        @RequestParam(required = false) categoryId: UUID?,
+        
+        @Parameter(description = "Search by product name or barcode")
+        @RequestParam(required = false) search: String?,
+        
+        @Parameter(description = "Sort by field")
         @RequestParam(defaultValue = "createdAt") sortBy: String,
+        
+        @Parameter(description = "Sort direction (asc/desc)")
         @RequestParam(defaultValue = "desc") direction: String
     ): BaseResponse<PageResponse<ProductAdminSimpleResponse>> {
         val sort = if (direction == "asc") Sort.by(sortBy).ascending() else Sort.by(sortBy).descending()
         val pageable = PageRequest.of(page, size, sort)
-        return BaseResponse.success(productService.getAllAdmin(pageable), "Products retrieved (admin)")
+        return BaseResponse.success(
+            productService.getAllAdminWithFilters(categoryId, search, pageable),
+            "Products retrieved (admin)"
+        )
     }
 
     @GetMapping("/admin/inventory")

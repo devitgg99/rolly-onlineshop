@@ -19,6 +19,7 @@ interface ProductService {
     fun delete(id: UUID)
     fun getByIdAdmin(id: UUID): ProductAdminResponse
     fun getAllAdmin(pageable: Pageable): PageResponse<ProductAdminSimpleResponse>
+    fun getAllAdminWithFilters(categoryId: UUID?, search: String?, pageable: Pageable): PageResponse<ProductAdminSimpleResponse>
 
     // Barcode lookup (for POS/scanning)
     fun getByBarcode(barcode: String): ProductAdminResponse

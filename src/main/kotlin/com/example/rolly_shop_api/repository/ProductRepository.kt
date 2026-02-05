@@ -12,6 +12,21 @@ interface ProductRepository : JpaRepository<Product, UUID> {
     fun findByCategoryId(categoryId: UUID, pageable: Pageable): Page<Product>
     fun findByNameContainingIgnoreCase(name: String, pageable: Pageable): Page<Product>
 
+    // Search by name OR barcode
+    fun findByNameContainingIgnoreCaseOrBarcodeContainingIgnoreCase(
+        name: String,
+        barcode: String,
+        pageable: Pageable
+    ): Page<Product>
+
+    // Filter by category AND search by name OR barcode
+    fun findByCategoryIdAndNameContainingIgnoreCaseOrBarcodeContainingIgnoreCase(
+        categoryId: UUID,
+        name: String,
+        barcode: String,
+        pageable: Pageable
+    ): Page<Product>
+
     // Find by barcode
     fun findByBarcode(barcode: String): Optional<Product>
 
