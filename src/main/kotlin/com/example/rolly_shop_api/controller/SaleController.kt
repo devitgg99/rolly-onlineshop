@@ -352,7 +352,7 @@ class SaleController(
     ): ResponseEntity<ByteArray> {
         val data = saleService.exportSales(format, startDate, endDate, paymentMethod, includeItems)
         
-        val contentType = when (format.lowercase()) {
+        val mediaTypeString = when (format.lowercase()) {
             "csv" -> "text/csv"
             "excel" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             "pdf" -> "application/pdf"
@@ -362,7 +362,7 @@ class SaleController(
         val filename = "sales_export_${LocalDate.now()}.$format"
         
         val headers = HttpHeaders().apply {
-            contentType = MediaType.parseMediaType(contentType)
+            contentType = MediaType.parseMediaType(mediaTypeString)
             setContentDispositionFormData("attachment", filename)
         }
         
