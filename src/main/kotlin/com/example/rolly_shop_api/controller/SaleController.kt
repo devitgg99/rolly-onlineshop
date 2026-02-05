@@ -100,6 +100,7 @@ class SaleController(
                 customerName, productId, sortBy, direction, pageable
             ),
             "Sales retrieved"
+            
         )
     }
 
@@ -206,7 +207,7 @@ class SaleController(
     // ==================== SALES ANALYTICS DASHBOARD ====================
 
     @GetMapping("/analytics")
-    
+
     @Operation(
         summary = "Get comprehensive sales analytics",
         description = """
