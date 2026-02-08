@@ -386,7 +386,7 @@ class SaleServiceImplement(
         val pageableWithSort = PageRequest.of(pageable.pageNumber, pageable.pageSize, sort)
 
         val page = saleRepository.findWithFilters(
-            start, end, paymentMethod, minAmount, maxAmount, customerName, productId, pageableWithSort
+            start, end, paymentMethod, minAmount, maxAmount, customerName ?: "", productId, pageableWithSort
         )
 
         return PageResponse.from(page) { SaleSimpleResponse.from(it) }

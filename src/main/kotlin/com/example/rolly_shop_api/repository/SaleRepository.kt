@@ -71,14 +71,14 @@ interface SaleRepository : JpaRepository<Sale, UUID> {
     // ==================== ADVANCED FILTERING ====================
 
     @Query("""
-        SELECT s FROM Sale s
+        SELECT DISTINCT s FROM Sale s
         LEFT JOIN s.items si
         WHERE (:startDate IS NULL OR s.createdAt >= :startDate)
         AND (:endDate IS NULL OR s.createdAt <= :endDate)
         AND (:paymentMethod IS NULL OR s.paymentMethod = :paymentMethod)
         AND (:minAmount IS NULL OR s.totalAmount >= :minAmount)
         AND (:maxAmount IS NULL OR s.totalAmount <= :maxAmount)
-        AND (:customerName IS NULL OR LOWER(s.customerName) LIKE LOWER(CONCAT('%', :customerName, '%')))
+        AND (:customerName = '' OR s.customerName IS NOT NULL AND LOWER(s.customerName) LIKE LOWER(CONCAT('%', :customerName, '%')))
         AND (:productId IS NULL OR si.product.id = :productId)
     """)
     fun findWithFilters(
@@ -87,7 +87,7 @@ interface SaleRepository : JpaRepository<Sale, UUID> {
         @Param("paymentMethod") paymentMethod: PaymentMethod?,
         @Param("minAmount") minAmount: BigDecimal?,
         @Param("maxAmount") maxAmount: BigDecimal?,
-        @Param("customerName") customerName: String?,
+        @Param("customerName") customerName: String,
         @Param("productId") productId: UUID?,
         pageable: Pageable
     ): Page<Sale>
