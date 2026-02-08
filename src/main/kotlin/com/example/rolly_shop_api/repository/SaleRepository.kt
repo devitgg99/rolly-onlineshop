@@ -5,15 +5,15 @@ import com.example.rolly_shop_api.model.entity.Sale
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor
 import org.springframework.data.jpa.repository.Query
-import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Repository
 import java.math.BigDecimal
 import java.time.Instant
 import java.util.*
 
 @Repository
-interface SaleRepository : JpaRepository<Sale, UUID> {
+interface SaleRepository : JpaRepository<Sale, UUID>, JpaSpecificationExecutor<Sale> {
 
     // Get sales within date range
     fun findByCreatedAtBetween(start: Instant, end: Instant, pageable: Pageable): Page<Sale>
@@ -67,28 +67,4 @@ interface SaleRepository : JpaRepository<Sale, UUID> {
         ORDER BY SUM(s.totalAmount) DESC
     """)
     fun getTopCustomers(start: Instant, end: Instant, pageable: Pageable): List<Array<Any>>
-
-    // ==================== ADVANCED FILTERING ====================
-
-    @Query("""
-        SELECT DISTINCT s FROM Sale s
-        LEFT JOIN s.items si
-        WHERE (:startDate IS NULL OR s.createdAt >= :startDate)
-        AND (:endDate IS NULL OR s.createdAt <= :endDate)
-        AND (:paymentMethod IS NULL OR s.paymentMethod = :paymentMethod)
-        AND (:minAmount IS NULL OR s.totalAmount >= :minAmount)
-        AND (:maxAmount IS NULL OR s.totalAmount <= :maxAmount)
-        AND (:customerName = '' OR s.customerName IS NOT NULL AND LOWER(s.customerName) LIKE LOWER(CONCAT('%', :customerName, '%')))
-        AND (:productId IS NULL OR si.product.id = :productId)
-    """)
-    fun findWithFilters(
-        @Param("startDate") startDate: Instant?,
-        @Param("endDate") endDate: Instant?,
-        @Param("paymentMethod") paymentMethod: PaymentMethod?,
-        @Param("minAmount") minAmount: BigDecimal?,
-        @Param("maxAmount") maxAmount: BigDecimal?,
-        @Param("customerName") customerName: String,
-        @Param("productId") productId: UUID?,
-        pageable: Pageable
-    ): Page<Sale>
 }
