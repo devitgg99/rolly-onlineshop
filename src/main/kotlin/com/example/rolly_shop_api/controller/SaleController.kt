@@ -153,14 +153,23 @@ class SaleController(
 
     @GetMapping("/summary")
     @Operation(
-        summary = "Get sales summary for date range",
-        description = "🔒 ADMIN ONLY - Get sales summary/dashboard for a specific date range"
+        summary = "Get sales summary (all-time or date range)",
+        description = """
+            🔒 ADMIN ONLY - Get sales summary/dashboard.
+            
+            - Without dates: Returns all-time summary
+            - With dates: Returns summary for specific date range
+            
+            Examples:
+            - GET /sales/summary → All-time summary
+            - GET /sales/summary?startDate=2026-02-13&endDate=2026-02-13 → Specific day
+        """
     )
     fun getSummary(
-        @Parameter(description = "Start date (YYYY-MM-DD)")
-        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) startDate: LocalDate,
-        @Parameter(description = "End date (YYYY-MM-DD)")
-        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) endDate: LocalDate
+        @Parameter(description = "Start date (YYYY-MM-DD) - optional")
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) startDate: LocalDate?,
+        @Parameter(description = "End date (YYYY-MM-DD) - optional")
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) endDate: LocalDate?
     ): BaseResponse<SalesSummaryResponse> =
         BaseResponse.success(saleService.getSummary(startDate, endDate), "Sales summary")
 

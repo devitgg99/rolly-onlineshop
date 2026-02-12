@@ -25,8 +25,8 @@ interface SaleService {
     // Get sales by date range
     fun getSalesByDateRange(startDate: LocalDate, endDate: LocalDate, pageable: Pageable): PageResponse<SaleSimpleResponse>
 
-    // Get sales summary (dashboard)
-    fun getSummary(startDate: LocalDate, endDate: LocalDate): SalesSummaryResponse
+    // Get sales summary (dashboard) - supports all-time or date range
+    fun getSummary(startDate: LocalDate?, endDate: LocalDate?): SalesSummaryResponse
 
     // Get today's summary
     fun getTodaySummary(): SalesSummaryResponse

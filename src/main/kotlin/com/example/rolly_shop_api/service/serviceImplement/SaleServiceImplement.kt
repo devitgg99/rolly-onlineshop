@@ -146,7 +146,13 @@ class SaleServiceImplement(
         return PageResponse.from(page) { SaleSimpleResponse.from(it) }
     }
 
-    override fun getSummary(startDate: LocalDate, endDate: LocalDate): SalesSummaryResponse {
+    override fun getSummary(startDate: LocalDate?, endDate: LocalDate?): SalesSummaryResponse {
+        // If no dates provided, return all-time summary
+        if (startDate == null || endDate == null) {
+            return getAllTimeSummary()
+        }
+
+        // Otherwise, return summary for date range
         val start = startDate.atStartOfDay(ZoneId.systemDefault()).toInstant()
         val end = endDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant()
 
@@ -168,6 +174,34 @@ class SaleServiceImplement(
             profitMargin = profitMargin,
             periodStart = start,
             periodEnd = end
+        )
+    }
+
+    private fun getAllTimeSummary(): SalesSummaryResponse {
+        val allSales = saleRepository.findAll()
+        
+        val totalSales = allSales.size.toLong()
+        val totalRevenue = allSales.sumOf { it.totalAmount }
+        val totalProfit = allSales.sumOf { it.profit }
+        val totalCost = totalRevenue.subtract(totalProfit)
+
+        val profitMargin = if (totalRevenue > BigDecimal.ZERO) {
+            totalProfit.divide(totalRevenue, 4, RoundingMode.HALF_UP)
+                .multiply(BigDecimal(100)).toDouble()
+        } else 0.0
+
+        // Use first and last sale dates as period
+        val firstSale = allSales.minByOrNull { it.createdAt }
+        val lastSale = allSales.maxByOrNull { it.createdAt }
+
+        return SalesSummaryResponse(
+            totalSales = totalSales,
+            totalRevenue = totalRevenue,
+            totalCost = totalCost,
+            totalProfit = totalProfit,
+            profitMargin = profitMargin,
+            periodStart = firstSale?.createdAt ?: Instant.now(),
+            periodEnd = lastSale?.createdAt ?: Instant.now()
         )
     }
 
