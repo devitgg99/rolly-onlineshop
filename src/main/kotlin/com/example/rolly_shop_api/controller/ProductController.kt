@@ -243,6 +243,71 @@ class ProductController(
         return BaseResponse.ok("Product deleted")
     }
 
+    // ==================== VARIANT MANAGEMENT ====================
+
+    @GetMapping("/{id:[0-9a-fA-F\\-]{36}}/variants")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(
+        summary = "Get product variants",
+        description = """
+            🔒 ADMIN ONLY - Get all variants of a parent product.
+            
+            Returns list of variants with:
+            - Variant code, color, size
+            - Individual stock, price, profit
+            - Barcode for each variant
+        """
+    )
+    fun getVariants(@PathVariable id: UUID): BaseResponse<List<ProductVariantInfo>> =
+        BaseResponse.success(productService.getVariants(id), "Product variants")
+
+    @GetMapping("/admin/grouped")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(
+        summary = "Get products grouped by parent",
+        description = """
+            🔒 ADMIN ONLY - Get products with variant information.
+            
+            Each product includes:
+            - hasVariants flag (true if product has variants)
+            - Full product details
+            
+            Use this for displaying products in grouped/hierarchical view.
+        """
+    )
+    fun getGroupedProducts(
+        @Parameter(description = "Page number (0-based)")
+        @RequestParam(defaultValue = "0") page: Int,
+        
+        @Parameter(description = "Items per page")
+        @RequestParam(defaultValue = "20") size: Int,
+        
+        @Parameter(description = "Sort by field")
+        @RequestParam(defaultValue = "createdAt") sortBy: String,
+        
+        @Parameter(description = "Sort direction (asc/desc)")
+        @RequestParam(defaultValue = "desc") direction: String
+    ): BaseResponse<PageResponse<ProductAdminSimpleResponse>> {
+        val sort = if (direction == "asc") Sort.by(sortBy).ascending() else Sort.by(sortBy).descending()
+        val pageable = PageRequest.of(page, size, sort)
+        return BaseResponse.success(productService.getGroupedProducts(pageable), "Grouped products")
+    }
+
+    @GetMapping("/admin/{id:[0-9a-fA-F\\-]{36}}/can-delete")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(
+        summary = "Check if product can be deleted",
+        description = """
+            🔒 ADMIN ONLY - Check if product can be safely deleted.
+            
+            Returns false if:
+            - Product has variants
+            - Product has sales history
+        """
+    )
+    fun canDelete(@PathVariable id: UUID): BaseResponse<Map<String, Boolean>> =
+        BaseResponse.success(mapOf("canDelete" to productService.canDelete(id)), "Deletion check")
+
     @GetMapping("/export")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(

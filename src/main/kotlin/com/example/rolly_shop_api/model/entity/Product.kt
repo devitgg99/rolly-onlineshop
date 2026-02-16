@@ -46,6 +46,24 @@ data class Product(
     @JoinColumn(name = "category_id")
     val category: Category? = null,
 
+    // ==================== VARIANT FIELDS ====================
+    // Parent-child relationship for product variants
+    @Column(name = "parent_product_id")
+    val parentProductId: UUID? = null,
+
+    @Column(name = "is_variant")
+    val isVariant: Boolean = false,
+
+    // Variant attributes (all optional)
+    @Column(name = "variant_code", length = 50)
+    val variantCode: String? = null,
+
+    @Column(name = "variant_color", length = 50)
+    val variantColor: String? = null,
+
+    @Column(name = "variant_size", length = 50)
+    val variantSize: String? = null,
+
     @Column(name = "created_at")
     val createdAt: Instant = Instant.now(),
 

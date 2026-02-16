@@ -51,4 +51,28 @@ interface ProductRepository : JpaRepository<Product, UUID> {
 
     // Get low stock products
     fun findByStockQuantityLessThanEqual(threshold: Int, pageable: Pageable): Page<Product>
+
+    // ==================== VARIANT QUERIES ====================
+
+    // Find all variants of a parent product
+    fun findByParentProductId(parentId: UUID): List<Product>
+
+    // Find all parent products (products that have variants)
+    @Query("SELECT p FROM Product p WHERE p.id IN (SELECT DISTINCT v.parentProductId FROM Product v WHERE v.isVariant = true)")
+    fun findAllParentProducts(): List<Product>
+
+    // Check if product has variants
+    fun existsByParentProductId(parentId: UUID): Boolean
+
+    // Find all standalone products (no parent, not a variant, has no children)
+    @Query("""
+        SELECT p FROM Product p 
+        WHERE p.parentProductId IS NULL 
+        AND p.isVariant = false 
+        AND NOT EXISTS (SELECT v FROM Product v WHERE v.parentProductId = p.id)
+    """)
+    fun findAllStandaloneProducts(): List<Product>
+
+    // Get count of variants for a parent
+    fun countByParentProductId(parentId: UUID): Long
 }

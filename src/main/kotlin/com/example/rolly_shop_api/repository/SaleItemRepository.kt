@@ -53,4 +53,7 @@ interface SaleItemRepository : JpaRepository<SaleItem, UUID> {
 
     // Get all sale items for a product
     fun findByProductId(productId: UUID): List<SaleItem>
+
+    // Check if product has sales (for deletion check)
+    fun existsByProductId(productId: UUID): Boolean
 }

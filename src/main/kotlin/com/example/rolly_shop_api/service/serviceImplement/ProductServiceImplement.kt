@@ -63,6 +63,13 @@ class ProductServiceImplement(
             }
         }
 
+        // Validate parent product if creating a variant
+        request.parentProductId?.let { parentId ->
+            if (!productRepository.existsById(parentId)) {
+                throw NoSuchElementException("Parent product not found")
+            }
+        }
+
         val brand = request.brandId?.let {
             brandRepository.findById(it).orElseThrow { NoSuchElementException("Brand not found") }
         }
@@ -79,7 +86,13 @@ class ProductServiceImplement(
             stockQuantity = request.stockQuantity,
             imageUrl = request.imageUrl,
             brand = brand,
-            category = category
+            category = category,
+            // Variant fields
+            parentProductId = request.parentProductId,
+            isVariant = request.isVariant || request.parentProductId != null,  // Auto-set if has parent
+            variantCode = request.variantCode,
+            variantColor = request.variantColor,
+            variantSize = request.variantSize
         )
         return ProductAdminResponse.from(productRepository.save(product))
     }
@@ -113,6 +126,12 @@ class ProductServiceImplement(
             imageUrl = request.imageUrl,
             brand = brand,
             category = category,
+            // Variant fields
+            parentProductId = request.parentProductId,
+            isVariant = request.isVariant || request.parentProductId != null,
+            variantCode = request.variantCode,
+            variantColor = request.variantColor,
+            variantSize = request.variantSize,
             updatedAt = Instant.now()
         )
         val avgRating = reviewRepository.getAverageRating(id)
@@ -210,5 +229,46 @@ class ProductServiceImplement(
         
         val resultPage = PageImpl(inventoryList, pageable, page.totalElements)
         return PageResponse.from(resultPage) { it }
+    }
+
+    // ==================== VARIANT MANAGEMENT ====================
+
+    override fun getVariants(parentProductId: UUID): List<ProductVariantInfo> {
+        // Verify parent exists
+        if (!productRepository.existsById(parentProductId)) {
+            throw NoSuchElementException("Parent product not found")
+        }
+
+        val variants = productRepository.findByParentProductId(parentProductId)
+        return variants.map { ProductVariantInfo.from(it) }
+    }
+
+    override fun getGroupedProducts(pageable: Pageable): PageResponse<ProductAdminSimpleResponse> {
+        // Get all products
+        val page = productRepository.findAll(pageable)
+        
+        // Build response with hasVariants flag
+        val products = page.content.map { product ->
+            val hasVariants = if (!product.isVariant) {
+                productRepository.existsByParentProductId(product.id!!)
+            } else {
+                false
+            }
+            ProductAdminSimpleResponse.from(product, hasVariants)
+        }
+        
+        val resultPage = PageImpl(products, pageable, page.totalElements)
+        return PageResponse.from(resultPage) { it }
+    }
+
+    override fun canDelete(id: UUID): Boolean {
+        // Cannot delete if product has variants
+        if (productRepository.existsByParentProductId(id)) {
+            return false
+        }
+
+        // Cannot delete if product has sales
+        val hasSales = saleItemRepository.existsByProductId(id)
+        return !hasSales
     }
 }

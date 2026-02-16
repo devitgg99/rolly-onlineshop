@@ -29,5 +29,17 @@ data class ProductRequest(
 
     val imageUrl: String? = null,
     val brandId: UUID? = null,
-    val categoryId: UUID? = null
+    val categoryId: UUID? = null,
+
+    // ==================== VARIANT FIELDS (Optional) ====================
+    // Set parentProductId to create a variant of existing product
+    val parentProductId: UUID? = null,
+
+    // Automatically set to true when parentProductId is provided
+    val isVariant: Boolean = false,
+
+    // Variant attributes (optional)
+    val variantCode: String? = null,      // e.g., "21", "23" for Cushion codes
+    val variantColor: String? = null,     // e.g., "Blonde", "Brown" for Hair Color
+    val variantSize: String? = null       // e.g., "Big", "Small"
 )

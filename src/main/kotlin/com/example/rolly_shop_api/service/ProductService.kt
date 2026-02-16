@@ -32,4 +32,15 @@ interface ProductService {
 
     // Admin inventory table (products with sales data)
     fun getInventoryTable(pageable: Pageable): PageResponse<ProductInventoryResponse>
+
+    // ==================== VARIANT MANAGEMENT ====================
+
+    // Get all variants of a product
+    fun getVariants(parentProductId: UUID): List<ProductVariantInfo>
+
+    // Get products grouped by parent (for admin view)
+    fun getGroupedProducts(pageable: Pageable): PageResponse<ProductAdminSimpleResponse>
+
+    // Check if product can be deleted (has variants or sales)
+    fun canDelete(id: UUID): Boolean
 }
