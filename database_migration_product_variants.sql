@@ -8,10 +8,17 @@
 
 -- Step 1: Add new columns to products table
 ALTER TABLE products ADD COLUMN parent_product_id UUID REFERENCES products(id) ON DELETE CASCADE;
-ALTER TABLE products ADD COLUMN is_variant BOOLEAN DEFAULT false;
+ALTER TABLE products ADD COLUMN is_variant BOOLEAN;  -- Allow NULL temporarily
 ALTER TABLE products ADD COLUMN variant_code VARCHAR(50);
 ALTER TABLE products ADD COLUMN variant_color VARCHAR(50);
 ALTER TABLE products ADD COLUMN variant_size VARCHAR(50);
+
+-- Step 1b: Set default values for existing rows
+UPDATE products SET is_variant = false WHERE is_variant IS NULL;
+
+-- Step 1c: Now add NOT NULL constraint and default
+ALTER TABLE products ALTER COLUMN is_variant SET DEFAULT false;
+ALTER TABLE products ALTER COLUMN is_variant SET NOT NULL;
 
 -- Step 2: Add indexes for better performance
 CREATE INDEX idx_products_parent ON products(parent_product_id);

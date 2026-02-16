@@ -120,7 +120,7 @@ data class ProductAdminResponse(
     val discountPercent: Int,
     val discountedPrice: BigDecimal,
     val profit: BigDecimal,          // Admin only: selling price - cost price
-    val stockQuantity: Int,
+    val stockQuantity: Int,          // Own stock (0 if parent with variants)
     val imageUrl: String?,
     val brand: BrandResponse?,
     val category: CategoryResponse?,
@@ -133,7 +133,8 @@ data class ProductAdminResponse(
     val variantCode: String? = null,
     val variantColor: String? = null,
     val variantSize: String? = null,
-    val variants: List<ProductVariantInfo>? = null  // If parent, list of variants
+    val variants: List<ProductVariantInfo>? = null,  // If parent, list of variants
+    val totalVariantStock: Int? = null               // Total stock across all variants
 ) {
     companion object {
         fun from(product: Product, averageRating: Double? = null) = ProductAdminResponse(
@@ -157,8 +158,18 @@ data class ProductAdminResponse(
             variantCode = product.variantCode,
             variantColor = product.variantColor,
             variantSize = product.variantSize,
-            variants = null  // Populated separately if needed
+            variants = null,  // Populated separately if needed
+            totalVariantStock = null  // Calculated separately
         )
+    }
+    
+    // Calculate total stock (includes variants if parent)
+    fun getTotalStock(): Int {
+        return if (variants != null && variants.isNotEmpty()) {
+            variants.sumOf { it.stockQuantity }
+        } else {
+            stockQuantity
+        }
     }
 }
 

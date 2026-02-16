@@ -70,6 +70,19 @@ class ProductServiceImplement(
             }
         }
 
+        // Validate: If creating a parent product (not a variant), force stock to 0
+        val isVariantProduct = request.isVariant || request.parentProductId != null
+        val stockQuantity = if (!isVariantProduct && request.stockQuantity == 0) {
+            // This might be a parent product - stock must be 0
+            0
+        } else if (!isVariantProduct && request.stockQuantity > 0) {
+            // This is a regular standalone product - allow stock
+            request.stockQuantity
+        } else {
+            // This is a variant - allow stock
+            request.stockQuantity
+        }
+
         val brand = request.brandId?.let {
             brandRepository.findById(it).orElseThrow { NoSuchElementException("Brand not found") }
         }
@@ -83,13 +96,13 @@ class ProductServiceImplement(
             costPrice = request.costPrice,
             price = request.price,
             discountPercent = request.discountPercent,
-            stockQuantity = request.stockQuantity,
+            stockQuantity = stockQuantity,
             imageUrl = request.imageUrl,
             brand = brand,
             category = category,
             // Variant fields
             parentProductId = request.parentProductId,
-            isVariant = request.isVariant || request.parentProductId != null,  // Auto-set if has parent
+            isVariant = isVariantProduct,  // Auto-set if has parent
             variantCode = request.variantCode,
             variantColor = request.variantColor,
             variantSize = request.variantSize
@@ -149,7 +162,20 @@ class ProductServiceImplement(
         val product = productRepository.findById(id)
             .orElseThrow { NoSuchElementException("Product not found") }
         val avgRating = reviewRepository.getAverageRating(id)
-        return ProductAdminResponse.from(product, avgRating)
+        
+        // If product has variants, populate them and calculate total stock
+        val response = ProductAdminResponse.from(product, avgRating)
+        if (!product.isVariant && productRepository.existsByParentProductId(id)) {
+            val variants = productRepository.findByParentProductId(id)
+            val variantInfos = variants.map { ProductVariantInfo.from(it) }
+            val totalStock = variantInfos.sumOf { it.stockQuantity }
+            return response.copy(
+                variants = variantInfos,
+                totalVariantStock = totalStock
+            )
+        }
+        
+        return response
     }
 
     override fun getAllAdmin(pageable: Pageable): PageResponse<ProductAdminSimpleResponse> {
