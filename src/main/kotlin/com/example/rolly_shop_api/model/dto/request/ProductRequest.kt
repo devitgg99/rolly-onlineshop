@@ -13,11 +13,11 @@ data class ProductRequest(
     val barcode: String? = null,
 
     @field:NotNull(message = "Cost price is required")
-    @field:DecimalMin(value = "0.0", inclusive = false, message = "Cost price must be greater than 0")
+    @field:DecimalMin(value = "0.0", inclusive = true, message = "Cost price must be 0 or greater")
     val costPrice: BigDecimal,
 
     @field:NotNull(message = "Selling price is required")
-    @field:DecimalMin(value = "0.0", inclusive = false, message = "Selling price must be greater than 0")
+    @field:DecimalMin(value = "0.0", inclusive = true, message = "Selling price must be 0 or greater")
     val price: BigDecimal,
 
     @field:Min(value = 0, message = "Discount must be between 0 and 100")
