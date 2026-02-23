@@ -70,17 +70,18 @@ class ProductServiceImplement(
             }
         }
 
-        // Validate: If creating a parent product (not a variant), force stock to 0
+        // Determine if this is a parent product (will have variants)
         val isVariantProduct = request.isVariant || request.parentProductId != null
-        val stockQuantity = if (!isVariantProduct && request.stockQuantity == 0) {
-            // This might be a parent product - stock must be 0
-            0
-        } else if (!isVariantProduct && request.stockQuantity > 0) {
-            // This is a regular standalone product - allow stock
-            request.stockQuantity
-        } else {
-            // This is a variant - allow stock
-            request.stockQuantity
+        val isParentProduct = !isVariantProduct && request.stockQuantity == 0
+        
+        // Validate prices ONLY for non-parent products
+        if (!isParentProduct) {
+            if (request.costPrice <= BigDecimal.ZERO) {
+                throw IllegalArgumentException("Cost price must be greater than 0")
+            }
+            if (request.price <= BigDecimal.ZERO) {
+                throw IllegalArgumentException("Selling price must be greater than 0")
+            }
         }
 
         val brand = request.brandId?.let {
@@ -96,18 +97,34 @@ class ProductServiceImplement(
             costPrice = request.costPrice,
             price = request.price,
             discountPercent = request.discountPercent,
-            stockQuantity = stockQuantity,
+            stockQuantity = request.stockQuantity,
             imageUrl = request.imageUrl,
             brand = brand,
             category = category,
             // Variant fields
             parentProductId = request.parentProductId,
-            isVariant = isVariantProduct,  // Auto-set if has parent
+            isVariant = isVariantProduct,
             variantCode = request.variantCode,
             variantColor = request.variantColor,
             variantSize = request.variantSize
         )
-        return ProductAdminResponse.from(productRepository.save(product))
+        
+        val savedProduct = productRepository.save(product)
+        
+        // If creating first variant, update parent price if parent has 0 price
+        request.parentProductId?.let { parentId ->
+            val parent = productRepository.findById(parentId).orElseThrow()
+            if (parent.price == BigDecimal.ZERO) {
+                val updated = parent.copy(
+                    costPrice = request.costPrice,
+                    price = request.price,
+                    updatedAt = Instant.now()
+                )
+                productRepository.save(updated)
+            }
+        }
+        
+        return ProductAdminResponse.from(savedProduct)
     }
 
     override fun update(id: UUID, request: ProductRequest): ProductAdminResponse {
@@ -210,7 +227,35 @@ class ProductServiceImplement(
                 productRepository.findAll(pageable)
             }
         }
-        return PageResponse.from(page) { ProductAdminSimpleResponse.from(it) }
+        
+        // Enrich with variant information
+        val enrichedProducts = page.content.map { product ->
+            val hasVariants = if (!product.isVariant) {
+                productRepository.existsByParentProductId(product.id!!)
+            } else {
+                false
+            }
+            
+            // Calculate total variant stock if parent
+            val totalStock = if (hasVariants) {
+                val variants = productRepository.findByParentProductId(product.id!!)
+                variants.sumOf { it.stockQuantity }
+            } else {
+                null
+            }
+            
+            ProductAdminSimpleResponse.from(product, hasVariants).copy(
+                totalVariantStock = totalStock
+            )
+        }
+        
+        return PageResponse(
+            content = enrichedProducts,
+            totalPages = page.totalPages,
+            totalElements = page.totalElements,
+            currentPage = page.number,
+            pageSize = page.size
+        )
     }
 
     // ==================== BARCODE LOOKUP (for POS/scanning) ====================

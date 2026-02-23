@@ -194,7 +194,8 @@ data class ProductAdminSimpleResponse(
     val variantCode: String? = null,
     val variantColor: String? = null,
     val variantSize: String? = null,
-    val hasVariants: Boolean = false  // True if this product has variants
+    val hasVariants: Boolean = false,      // True if this product has variants
+    val totalVariantStock: Int? = null     // Total stock across all variants (for parents)
 ) {
     companion object {
         fun from(product: Product, hasVariants: Boolean = false) = ProductAdminSimpleResponse(
@@ -215,7 +216,8 @@ data class ProductAdminSimpleResponse(
             variantCode = product.variantCode,
             variantColor = product.variantColor,
             variantSize = product.variantSize,
-            hasVariants = hasVariants
+            hasVariants = hasVariants,
+            totalVariantStock = null  // Calculated separately
         )
     }
 
@@ -226,5 +228,14 @@ data class ProductAdminSimpleResponse(
         variantColor?.let { parts.add(it) }
         variantSize?.let { parts.add(it) }
         return parts.joinToString(" - ")
+    }
+    
+    // Get stock display (shows total variant stock if parent)
+    fun getStockDisplay(): String {
+        return if (hasVariants && totalVariantStock != null) {
+            "$totalVariantStock (across variants)"
+        } else {
+            stockQuantity.toString()
+        }
     }
 }
